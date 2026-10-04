@@ -1,0 +1,41 @@
+.particle-page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+}
+
+.particle-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.particle-caption {
+  position: absolute;
+  right: 16px;
+  bottom: 24px;
+  left: 16px;
+  max-width: 448px;
+  margin-inline: auto;
+  text-align: center;
+  pointer-events: none;
+}
+
+.caption-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.caption-hint {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 12px;
+}
