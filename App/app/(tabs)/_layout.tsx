@@ -38,6 +38,8 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} /> }} />
       <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: ({ color }) => <TabIcon emoji="🔍" color={color} /> }} />
+      {/* Placeholder tab slot: the center + button routes to the /save modal
+          directly, so this screen is never displayed. */}
       <Tabs.Screen
         name="save-placeholder"
         options={{
@@ -51,7 +53,7 @@ export default function TabsLayout() {
   );
 }
 
-function TabIcon({ emoji, color }: { emoji: string; color: string | number | symbol }) {
+function TabIcon({ emoji, color }: { emoji: string; color?: string | number | symbol | null }) {
   const active = color === '#FFFFFF' || color === colors.text;
   return (
     <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>

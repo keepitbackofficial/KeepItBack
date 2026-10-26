@@ -1,4 +1,7 @@
-/** Core domain types — mirrors the PRD §25 data architecture. */
+/**
+ * KeepItBack domain types — mirrors the Supabase schema in
+ * supabase/migrations/. Column names match the database exactly.
+ */
 
 export type Platform =
   | 'Instagram'
@@ -8,89 +11,69 @@ export type Platform =
   | 'X'
   | 'Pinterest'
   | 'Reddit'
-  | 'Other';
+  | 'Web';
 
 export type ContentType =
   | 'Reel'
   | 'Short'
   | 'Video'
   | 'Post'
-  | 'Image'
   | 'Carousel'
+  | 'Image'
   | 'Article'
   | 'Link';
 
-export const CATEGORIES = [
-  'Travel',
-  'Food',
-  'Education',
-  'Technology',
-  'Programming',
-  'Fitness',
-  'Finance',
-  'Shopping',
-  'Business',
-  'Entertainment',
-  'Inspiration',
-  'Lifestyle',
-  'News',
-  'Other',
-] as const;
-export type Category = (typeof CATEGORIES)[number];
+/** Where a saved item came from. */
+export type SaveSource = 'manual' | 'share_extension' | 'instagram_dm' | 'account_import';
 
 export interface SavedItem {
   id: string;
-  originalUrl: string;
+  user_id: string;
+  original_url: string;
+  canonical_url: string;
   platform: Platform;
-  contentType: ContentType;
+  content_type: ContentType;
   title: string;
-  creatorName: string;
-  creatorHandle?: string;
-  emoji: string;
-  savedAt: number;
-  openedAt?: number;
-  openCount: number;
-  isArchived: boolean;
-  /** Local download state */
-  downloadState: 'none' | 'downloading' | 'downloaded' | 'unsupported';
-  downloadProgress: number; // 0..1
-  downloadSizeMb?: number;
-  /** User organization */
-  tags: string[];
-  note?: string;
-  whySaved?: string;
-  /** AI metadata (phase 1) */
-  aiState: 'pending' | 'done' | 'failed';
-  aiSummary?: string;
-  aiKeywords: string[];
-  aiCategory?: Category;
+  creator_name?: string | null;
+  creator_handle?: string | null;
+  source: SaveSource;
+  note?: string | null;
+  saved_at: string;
+  opened_at?: string | null;
+  open_count: number;
+  is_archived: boolean;
+  fts?: unknown;
+  tags?: string[];
 }
 
 export interface Collection {
   id: string;
+  user_id: string;
   name: string;
   emoji: string;
-  description?: string;
-  isPrivate: boolean;
-  createdAt: number;
-  itemIds: string[];
+  description?: string | null;
+  created_at: string;
+  item_count?: number;
 }
 
 export interface Profile {
-  displayName: string;
-  username: string;
-  email: string;
-  bio?: string;
+  user_id: string;
+  display_name?: string | null;
+  email?: string | null;
+  created_at: string;
 }
 
-export interface Settings {
-  privateProfile: boolean;
-  publicCollections: boolean;
-  aiProcessing: boolean;
-  analyticsConsent: boolean;
-  allowDuplicateSaves: boolean;
-  notifDownload: boolean;
-  notifAi: boolean;
-  notifCollections: boolean;
-  notifAnnouncements: boolean;
+export type ConnectedProvider = 'instagram';
+
+export interface ConnectedAccount {
+  id: string;
+  user_id: string;
+  provider: ConnectedProvider;
+  provider_account_id: string;
+  provider_username?: string | null;
+  linked_at: string;
 }
+
+/** Platform group filter used in Search/Library (PRD v2 §4). */
+export const PLATFORM_FILTERS = ['All', 'Instagram', 'TikTok', 'YouTube', 'Web'] as const;
+export type PlatformFilter = (typeof PLATFORM_FILTERS)[number];

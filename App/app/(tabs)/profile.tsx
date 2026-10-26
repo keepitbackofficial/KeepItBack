@@ -1,98 +1,95 @@
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KIBAvatar, KIBIconButton } from '../../src/components/KIBPrimitives';
-import { useStore } from '../../src/store/useStore';
+import { useAuth, useUser } from '@clerk/expo';
+import { fetchProfile } from '../../src/api/profile';
+import { fetchConnectedAccounts } from '../../src/api/accounts';
+import { KIBAvatar } from '../../src/components/KIBPrimitives';
 import { colors, spacing, type } from '../../src/theme';
 
-/** SCREEN 24 — PROFILE. */
+/**
+ * SCREEN — PROFILE. Name/email come from the real Clerk user (or the
+ * synced profile row); linked integrations only show connected state when
+ * the connected_accounts table actually has a row.
+ */
 export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { profile, items, collections } = useStore();
-  const downloaded = items.filter((i) => i.downloadState === 'downloaded');
-  const storageMb = downloaded.reduce((sum, i) => sum + (i.downloadSizeMb ?? 0), 0);
+  const { user } = useUser();
+  const { signOut } = useAuth();
+  const [dbProfileName, setDbProfileName] = useState<string | null>(null);
+  const [igLinked, setIgLinked] = useState<'' | 'checking' | 'yes' | 'no'>('checking');
+
+  useEffect(() => {
+    void (async () => {
+      if (!user?.id) return;
+      const res = await fetchProfile(user.id);
+      if (res.data) setDbProfileName(res.data.display_name ?? null);
+      const acc = await fetchConnectedAccounts();
+      if (acc.data) setIgLinked(acc.data.some((a) => a.provider === 'instagram') ? 'yes' : 'no');
+      else setIgLinked('checking');
+    })();
+  }, [user?.id]);
+
+  const displayName = user?.fullName || dbProfileName || user?.emailAddresses[0]?.emailAddress.split('@')[0] || 'Your account';
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + spacing.sm }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.xl }}>
-        <KIBIconButton icon="⚙️" label="Settings" onPress={() => router.push('/settings')} />
+    <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
+      <View style={{ alignItems: 'center' }}>
+        <KIBAvatar name={displayName} size={72} />
+        <Text style={[type.h2 as any, { color: colors.text, marginTop: spacing.md }]}>{displayName}</Text>
+        {email ? <Text style={{ color: colors.textSecondary, marginTop: 4 }}>{email}</Text> : null}
       </View>
 
-      <View style={{ alignItems: 'center', marginTop: spacing.sm }}>
-        <KIBAvatar name={profile.displayName} size={84} />
-        <Text style={[type.h2 as any, { color: colors.text, marginTop: spacing.md }]}>{profile.displayName}</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 13 }}>@{profile.username}</Text>
+      <View style={{ marginTop: spacing.xxl, gap: 10 }}>
+        <Row label="Connected accounts" value={'›'} onPress={() => router.push('/settings/connected-accounts')} />
+        <Row label="Settings" value="›" onPress={() => router.push('/settings')} />
+        <Row
+          label="Instagram DM link"
+          value={igLinked === 'yes' ? 'Linked' : igLinked === 'no' ? 'Not linked' : '…'}
+          onPress={() => router.push('/settings/connected-accounts')}
+        />
       </View>
 
-      <View style={styles.stats}>
-        <View style={styles.stat}>
-          <Text style={[type.h2 as any, { color: colors.text }]}>{items.filter((i) => !i.isArchived).length}</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Saved</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={[type.h2 as any, { color: colors.text }]}>{collections.length}</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Collections</Text>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.card}>
-          <Text style={[type.h3 as any, { color: colors.text, marginBottom: spacing.sm }]}>My Collections</Text>
-          {collections.map((c) => (
-            <Pressable
-              key={c.id}
-              onPress={() => router.push(`/collections/${c.id}`)}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm }}
-              accessibilityLabel={`Open ${c.name}`}
-            >
-              <Text style={{ fontSize: 18, marginRight: 10 }}>{c.emoji}</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 14, flex: 1 }}>{c.name}</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>{c.itemIds.length}</Text>
-            </Pressable>
-          ))}
-          <Pressable onPress={() => router.push('/collections/create')} accessibilityLabel="Create new collection">
-            <Text style={{ color: colors.accentSoft, fontSize: 14, paddingTop: spacing.sm }}>+ New collection</Text>
-          </Pressable>
-        </View>
-
-        <Pressable style={[styles.card, { marginTop: spacing.md }]} onPress={() => router.push('/downloads')} accessibilityLabel="Open downloads">
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={[type.h3 as any, { color: colors.text }]}>Downloads</Text>
-            <Text style={{ color: colors.textMuted }}>›</Text>
-          </View>
-          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
-            {downloaded.length} items • {storageMb >= 1024 ? `${(storageMb / 1024).toFixed(1)} GB` : `${Math.round(storageMb)} MB`}
-          </Text>
-        </Pressable>
-
-        <Pressable style={[styles.card, { marginTop: spacing.md }]} onPress={() => router.push('/settings')} accessibilityLabel="Open settings">
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={[type.h3 as any, { color: colors.text }]}>Settings</Text>
-            <Text style={{ color: colors.textMuted }}>›</Text>
-          </View>
-        </Pressable>
-      </ScrollView>
+      <View style={{ flex: 1 }} />
+      <Text
+        onPress={() => void signOut()}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+        style={{ color: colors.error, textAlign: 'center', fontSize: 15, padding: spacing.lg }}
+      >
+        Sign out
+      </Text>
     </View>
   );
 }
 
+function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={styles.row}>
+      <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>{label}</Text>
+      <Text style={{ color: onValueColor(value), fontSize: 14 }}>{value}</Text>
+    </Pressable>
+  );
+}
+
+function onValueColor(v: string) {
+  if (v === 'Linked') return colors.success;
+  if (v === 'Not linked') return colors.textMuted;
+  return colors.textMuted;
+}
+
 const styles = StyleSheet.create({
-  stats: {
+  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 60,
-    paddingVertical: spacing.lg,
-    marginVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  stat: { alignItems: 'center' },
-  card: {
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: spacing.lg,
+    borderRadius: 12,
+    padding: spacing.md,
   },
 });

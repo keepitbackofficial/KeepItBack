@@ -2,7 +2,7 @@ import { ContentType, Platform } from '../types';
 
 /**
  * Platform + content-type detection from a URL.
- * PRD §9 — unknown URLs fall back to Other/Web.
+ * Unknown hostnames fall back to Web.
  */
 export function detectPlatform(url: string): Platform {
   const u = url.toLowerCase();
@@ -13,7 +13,7 @@ export function detectPlatform(url: string): Platform {
   if (/(twitter|x)\.com/.test(u)) return 'X';
   if (/pinterest\./.test(u)) return 'Pinterest';
   if (/reddit\.com/.test(u)) return 'Reddit';
-  return 'Other';
+  return 'Web';
 }
 
 export function detectContentType(url: string): ContentType {
@@ -37,7 +37,7 @@ export const platformEmoji: Record<Platform, string> = {
   X: '𝕏',
   Pinterest: '📌',
   Reddit: '👽',
-  Other: '🌐',
+  Web: '🌐',
 };
 
 export const platformColor: Record<Platform, string> = {
@@ -48,14 +48,13 @@ export const platformColor: Record<Platform, string> = {
   X: '#AAAAAA',
   Pinterest: '#E60023',
   Reddit: '#FF6634',
-  Other: '#7C5CFC',
+  Web: '#7C5CFC',
 };
 
 export function isValidUrl(text: string): boolean {
   const t = text.trim();
   if (!/^https?:\/\//i.test(t)) return false;
   try {
-    // eslint-disable-next-line no-new
     new URL(t);
     return true;
   } catch {
@@ -63,7 +62,7 @@ export function isValidUrl(text: string): boolean {
   }
 }
 
-/** Simple canonicalization: strip tracking params + trailing slash. */
+/** Conservative canonicalization: strip tracking params + trailing slash. */
 export function canonicalUrl(url: string): string {
   try {
     const u = new URL(url.trim());

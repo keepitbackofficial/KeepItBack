@@ -5,7 +5,7 @@ Set up Clerk authentication with the Clerk CLI.
 ## Quick Setup
 
 Before running any commands, present the user with a preliminary setup
-checklist:
+checklist:  
 
 ```
 Here's what I'll do to get you set up with Clerk.

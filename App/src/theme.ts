@@ -32,7 +32,7 @@ export const type = {
 };
 
 /** Deterministic gradient pair for thumbnail placeholders, keyed by a string id. */
-export const thumbnailPalettes: Array<[string, string]> = [
+export const thumbnailPalettes: [string, string][] = [
   ['#2B1E5A', '#7C5CFC'],
   ['#123B33', '#35D07F'],
   ['#4A2412', '#F5B942'],

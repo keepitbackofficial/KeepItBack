@@ -1,105 +1,101 @@
+import { useEffect } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KIBBottomSheet, KIBContentCard } from '../../src/components/KIBContent';
-import { KIBEmptyState, KIBFilterChip, KIBIconButton } from '../../src/components/KIBPrimitives';
-import { useStore } from '../../src/store/useStore';
+import { KIBContentRow } from '../../src/components/KIBContent';
+import { KIBButton, KIBEmptyState, KIBErrorState } from '../../src/components/KIBPrimitives';
+import { useLibrary } from '../../src/store/useLibrary';
+import { PLATFORM_FILTERS, PlatformFilter, SavedItem } from '../../src/types';
 import { colors, spacing, type } from '../../src/theme';
-import { ContentType, SavedItem } from '../../src/types';
 
-type TypeFilter = 'All' | ContentType;
-type Sort = 'Recently saved' | 'Recently opened' | 'A–Z' | 'Oldest' | 'Most used';
+const PAGE = 24;
 
-const TYPE_FILTERS: TypeFilter[] = ['All', 'Video', 'Reel', 'Short', 'Post', 'Image', 'Article', 'Link'];
-const SORTS: Sort[] = ['Recently saved', 'Recently opened', 'A–Z', 'Oldest', 'Most used'];
-
-/** SCREEN 15 — LIBRARY. */
+/**
+ * SCREEN — LIBRARY. All rows belong to the signed-in user, ordered by
+ * saved_at desc straight from PostgreSQL. Legends/counts are real
+ * aggregate counts fetched from the db, never simulated.
+ */
 export default function Library() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const items = useStore((s) => s.items);
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('All');
-  const [sort, setSort] = useState<Sort>('Recently saved');
-  const [sortOpen, setSortOpen] = useState(false);
+  const { items, counts, platform, loading, error, loadItems, setPlatform } = useLibrary();
 
-  const visible = useMemo(() => {
-    const videoish: ContentType[] = ['Video', 'Reel', 'Short'];
-    let list = items.filter((i) => !i.isArchived);
-    if (typeFilter === 'Video') list = list.filter((i) => videoish.includes(i.contentType));
-    else if (typeFilter !== 'All') list = list.filter((i) => i.contentType === typeFilter);
-    const sorted = [...list];
-    switch (sort) {
-      case 'Recently saved': sorted.sort((a, b) => b.savedAt - a.savedAt); break;
-      case 'Recently opened': sorted.sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0)); break;
-      case 'A–Z': sorted.sort((a, b) => a.title.localeCompare(b.title)); break;
-      case 'Oldest': sorted.sort((a, b) => a.savedAt - b.savedAt); break;
-      case 'Most used': sorted.sort((a, b) => b.openCount - a.openCount); break;
-    }
-    return sorted;
-  }, [items, typeFilter, sort]);
+  useEffect(() => {
+    void loadItems();
+  }, [platform]);
+
+  const hasMore = counts ? items.length < counts[platform === 'All' ? 'all' : platform.toLowerCase()] : false;
+
+  if (error) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <KIBErrorState message={error} onRetry={() => void loadItems()} />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + spacing.sm }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl }}>
-        <Text style={[type.h1 as any, { color: colors.text }]}>Library</Text>
-        <KIBIconButton icon="⋮" label="Library options" onPress={() => router.push('/collections')} />
+    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+      <View style={{ paddingHorizontal: spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View>
+          <Text style={[type.h3 as any, { color: colors.text }]}>Library</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+            {counts ? `${counts.all} item${counts.all === 1 ? '' : 's'} in the database` : ''}
+          </Text>
+        </View>
+        <KIBButton label="Collections" variant="secondary" onPress={() => router.push('/collections')} />
       </View>
-      <Text style={{ color: colors.textMuted, fontSize: 13, paddingHorizontal: spacing.xl, marginTop: 2 }}>
-        {visible.length} saved
-      </Text>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.md }} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.xl }}>
-        {TYPE_FILTERS.map((t) => (
-          <KIBFilterChip key={t} label={t} active={typeFilter === t} onPress={() => setTypeFilter(t)} />
-        ))}
-      </ScrollView>
+      <View style={styles.filterRow}>
+        {PLATFORM_FILTERS.map((f: PlatformFilter) => {
+          const label = f === 'All' ? 'All' : f;
+          const active = platform === f;
+          return (
+            <KIBButton
+              key={f}
+              variant={active ? 'primary' : 'secondary'}
+              label={f === 'All' && counts ? `All (${counts.all})` : `${label}${counts ? ` (${counts[f.toLowerCase()] ?? 0})` : ''}`}
+              onPress={() => setPlatform(f)}
+              style={{ height: 38, paddingHorizontal: spacing.md }}
+            />
+          );
+        })}
+      </View>
 
-      <Pressable onPress={() => setSortOpen(true)} style={{ flexDirection: 'row', paddingHorizontal: spacing.xl, marginTop: spacing.md }} accessibilityLabel={`Sort: ${sort}`}>
-        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Sort: {sort} ▾</Text>
-      </Pressable>
-
-      {visible.length === 0 ? (
+      {platform === 'All' && counts?.all === 0 ? (
         <KIBEmptyState
           emoji="📚"
-          title="Nothing here yet"
-          message="Save something you find useful, funny or interesting."
-          actionLabel="+ Save Something"
+          title="Library is empty"
+          message="Save a link from Instagram, TikTok, YouTube, or anywhere on the web with the big + button — then it lands here for good."
+          actionLabel="Save a link"
           onAction={() => router.push('/save')}
         />
+      ) : loading && items.length === 0 ? (
+        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xxl }} />
+      ) : items.length === 0 ? (
+        <KIBEmptyState
+          emoji="🕸️"
+          title={`No ${platform} saves yet`}
+          message="Nothing saved from this platform yet. Every count on this page comes from what's actually in your library."
+        />
       ) : (
-        <ScrollView contentContainerStyle={styles.gridWrap} showsVerticalScrollIndicator={false}>
-          <View style={styles.grid}>
-            {visible.map((item: SavedItem) => (
-              <KIBContentCard key={item.id} item={item} width="48.5%" onPress={() => router.push(`/content/${item.id}`)} />
-            ))}
-          </View>
-        </ScrollView>
+        <FlatList
+          data={items}
+          keyExtractor={(i) => i.id}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 40, gap: spacing.md }}
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void loadItems()} tintColor={colors.accent} />}
+          onEndReached={() => {
+            if (hasMore && !loading) void loadItems();
+          }}
+          renderItem={({ item }: { item: SavedItem }) => <KIBContentRow item={item} onPress={() => router.push(`/content/${item.id}`)} />}
+        />
       )}
-
-      <KIBBottomSheet visible={sortOpen} onClose={() => setSortOpen(false)} title="Sort by">
-        {SORTS.map((s) => (
-          <Pressable
-            key={s}
-            onPress={() => {
-              setSort(s);
-              setSortOpen(false);
-            }}
-            style={styles.sortRow}
-            accessibilityRole="button"
-            accessibilityLabel={`Sort by ${s}`}
-          >
-            <Text style={{ color: sort === s ? colors.accentSoft : colors.text, fontSize: 15 }}>{s}</Text>
-            {sort === s ? <Text style={{ color: colors.accentSoft }}>✓</Text> : null}
-          </Pressable>
-        ))}
-      </KIBBottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  gridWrap: { padding: spacing.xl, paddingBottom: 100 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  sortRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.md },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: spacing.xl, marginTop: spacing.md },
 });

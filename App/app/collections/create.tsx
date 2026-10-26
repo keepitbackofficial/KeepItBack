@@ -1,94 +1,64 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KIBButton } from '../../src/components/KIBPrimitives';
-import { useStore } from '../../src/store/useStore';
+import { useLibrary } from '../../src/store/useLibrary';
 import { colors, radius, spacing, type } from '../../src/theme';
+import { KIBButton } from '../../src/components/KIBPrimitives';
 
-const EMOJIS = ['✈️', '💻', '🍔', '🛍️', '🏋️', '📚', '🎨', '🎵', '🏠', '💡'];
+const EMOJIS = ['📁', '🏷️', '🎬', '🍳', '✈️', '💻', '💪', '💡', '🎧', '📚'];
 
-/** SCREEN 18 — CREATE COLLECTION (public option disabled until implemented). */
 export default function CreateCollection() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const addCollection = useStore((s) => s.addCollection);
+  const createCollection = useLibrary((s) => (s as any).createCollection) as any;
   const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('📁');
   const [description, setDescription] = useState('');
-  const [emoji, setEmoji] = useState('✈️');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const create = () => {
-    if (!name.trim()) return;
-    addCollection({ name: name.trim(), emoji, description: description.trim() || undefined });
+  const submit = async () => {
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    const res = await createCollection({ name: name.trim(), emoji, description: description.trim() || undefined });
+    setBusy(false);
+    if (!res?.ok) {
+      if (res?.duplicate) setError('You already have a collection with this name.');
+      else setError(res?.error ?? 'Could not create the collection.');
+      return;
+    }
     router.back();
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xl }]}>
-      <View style={styles.topRow}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Cancel">
-          <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Cancel</Text>
-        </Pressable>
-        <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>Create</Text>
-      </View>
-
-      <Text style={[type.h1 as any, { color: colors.text, marginTop: spacing.xl }]}>New Collection</Text>
-
-      <View style={styles.coverPreview}>
-        <Text style={{ fontSize: 44 }}>{emoji}</Text>
-      </View>
-
-      <Text style={styles.label}>Emoji</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
+      <Text style={[type.h3 as any, { color: colors.text }]}>New collection</Text>
+      <TextInput value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={colors.textMuted} accessibilityLabel="Collection name" style={styles.input} />
+      <TextInput value={description} onChangeText={setDescription} placeholder="Description (optional)" placeholderTextColor={colors.textMuted} accessibilityLabel="Description" style={styles.input} />
+      <Text style={{ color: colors.textMuted, marginTop: spacing.md, marginBottom: 6 }}>Pick an icon</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {EMOJIS.map((e) => (
-          <Pressable
-            key={e}
-            onPress={() => setEmoji(e)}
-            accessibilityRole="button"
-            accessibilityLabel={`Emoji ${e}`}
-            style={[styles.emojiChip, emoji === e && { borderColor: colors.accent, backgroundColor: 'rgba(124,92,252,0.15)' }]}
-          >
-            <Text style={{ fontSize: 18 }}>{e}</Text>
-          </Pressable>
+          <Text key={e} onPress={() => setEmoji(e)} style={[styles.emojiBtn, emoji === e && { borderColor: colors.accent }]}>
+            {e}
+          </Text>
         ))}
       </View>
-
-      <Text style={styles.label}>Collection name</Text>
-      <TextInput value={name} onChangeText={setName} placeholder="Hyderabad Trip" placeholderTextColor={colors.textMuted} style={styles.input} accessibilityLabel="Collection name" />
-
-      <Text style={styles.label}>Description</Text>
-      <TextInput value={description} onChangeText={setDescription} placeholder="Places and food to try..." placeholderTextColor={colors.textMuted} style={styles.input} accessibilityLabel="Description" />
-
-      <Text style={styles.label}>Privacy</Text>
-      <View style={styles.privacyRow}>
-        <Text style={{ color: colors.text, fontSize: 14 }}>🔒 Private</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 12, flex: 1, marginLeft: 12 }}>
-          Public collections are coming soon — everything stays private for now.
-        </Text>
+      {error ? <Text style={{ color: colors.error, marginTop: spacing.md, fontSize: 13 }}>{error}</Text> : null}
+      <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
+        <KIBButton label={busy ? 'Creating…' : 'Create'} onPress={submit} disabled={!name.trim() || busy} />
+        <KIBButton label="Cancel" variant="ghost" onPress={() => router.back()} />
       </View>
-
-      <View style={{ flex: 1 }} />
-      <KIBButton label="Create" onPress={create} disabled={!name.trim()} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  coverPreview: {
-    height: 90,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-  },
-  label: { color: colors.textSecondary, fontSize: 13, marginTop: spacing.lg, marginBottom: 6 },
   input: {
     height: 52,
+    marginTop: spacing.md,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
@@ -97,23 +67,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     fontSize: 15,
   },
-  privacyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+  emojiBtn: {
+    fontSize: 24,
+    padding: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-  },
-  emojiChip: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
   },
 });

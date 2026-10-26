@@ -1,105 +1,170 @@
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KIBContentCard, KIBModal } from '../../src/components/KIBContent';
-import { KIBButton, KIBIconButton, SectionHeader } from '../../src/components/KIBPrimitives';
-import { paletteFor, colors, radius, spacing, type } from '../../src/theme';
-import { useStore } from '../../src/store/useStore';
+import { fetchCollectionWithItems, updateCollection, deleteCollection } from '../../src/api/collections';
+import { KIBContentRow } from '../../src/components/KIBContent';
+import { KIBButton, KIBEmptyState, KIBErrorState } from '../../src/components/KIBPrimitives';
+import { SavedItem } from '../../src/types';
+import { colors, spacing, type } from '../../src/theme';
 
-/** SCREEN 17 — COLLECTION DETAILS. */
-export default function CollectionDetails() {
+export default function CollectionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { collections, items, deleteCollection } = useStore();
-  const [confirm, setConfirm] = useState(false);
-  const collection = collections.find((c) => c.id === id);
+  const [name, setName] = useState('');
+  const [items, setItems] = useState<SavedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  if (!collection) {
+  const load = async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    const res = await fetchCollectionWithItems(id);
+    setLoading(false);
+    if (res.error || !res.data) {
+      setError(res.error ?? 'Collection not found.');
+      return;
+    }
+    setName(res.data.collection.name);
+    setItems(res.data.items);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!id) return;
+      const res = await fetchCollectionWithItems(id);
+      if (cancelled) return;
+      if (res.error || !res.data) {
+        setError(res.error ?? 'Collection not found.');
+        setLoading(false);
+        return;
+      }
+      setName(res.data.collection.name);
+      setItems(res.data.items);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const retry = () => {
+    void (async () => {
+      if (!id) return;
+      setLoading(true);
+      const res = await fetchCollectionWithItems(id);
+      if (res.error || !res.data) {
+        setError(res.error ?? 'Collection not found.');
+        setLoading(false);
+        return;
+      }
+      setName(res.data.collection.name);
+      setItems(res.data.items);
+      setLoading(false);
+    })();
+  };
+
+  if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + spacing.xl, paddingHorizontal: spacing.xl }}>
-        <Text style={{ color: colors.textMuted }}>Collection not found.</Text>
+      <View style={styles.center}>
+        <Text style={{ color: colors.textMuted }}>Loading collection…</Text>
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={styles.center}>
+        <KIBErrorState onRetry={load} />
       </View>
     );
   }
 
-  const collectionItems = collection.itemIds
-    .map((itemId) => items.find((i) => i.id === itemId))
-    .filter((i): i is NonNullable<typeof i> => Boolean(i));
-
-  const [from, to] = paletteFor(collection.id + collection.name);
-
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top }}>
-      <View style={styles.topBar}>
-        <KIBIconButton icon="←" label="Go back" onPress={() => router.back()} />
-        <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>
-          {collection.name}
-        </Text>
-        <KIBIconButton icon="⋮" label="Collection options" onPress={() => setConfirm(true)} />
+    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+      <View style={{ paddingHorizontal: spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        {renaming ? (
+          <TextInput value={name} onChangeText={setName} accessibilityLabel="Collection name" style={styles.renameInput} />
+        ) : (
+          <Text style={[type.h3 as any, { color: colors.text, flex: 1 }]}>{name}</Text>
+        )}
+        <Text style={{ color: colors.textMuted, fontSize: 12 }}>{items.length} item{items.length === 1 ? '' : 's'}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <View style={[styles.cover, { backgroundColor: from }]}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: to, opacity: 0.25 }} />
-          <Text style={{ fontSize: 44 }}>{collection.emoji}</Text>
-        </View>
-        <View style={{ padding: spacing.xl }}>
-          <Text style={[type.h2 as any, { color: colors.text }]}>
-            {collection.emoji} {collection.name}
-          </Text>
-          <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 4 }}>
-            {collectionItems.length} saved items{collection.description ? ` • ${collection.description}` : ''}
-          </Text>
+      {items.length === 0 ? (
+        <KIBEmptyState emoji="📭" title="Empty collection" message="Add saved links to this collection from any item's Collections action." />
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(i) => i.id}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, marginTop: spacing.md, paddingBottom: 40, gap: spacing.md }}
+          renderItem={({ item }) => <KIBContentRow item={item} onPress={() => router.push(`/content/${item.id}`)} />}
+        />
+      )}
 
-          {collectionItems.length === 0 ? (
-            <Text style={{ color: colors.textMuted, marginTop: spacing.xl, textAlign: 'center' }}>
-              Nothing in this collection yet.{'\n'}Open a saved item → Add to Collection.
-            </Text>
-          ) : (
-            <>
-              <View style={{ marginTop: spacing.xl }}>
-                <SectionHeader title="Items" />
-              </View>
-              <View style={styles.grid}>
-                {collectionItems.map((item) => (
-                  <KIBContentCard key={item.id} item={item} width="48.5%" onPress={() => router.push(`/content/${item.id}`)} />
-                ))}
-              </View>
-            </>
-          )}
-
-          <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
-            <KIBButton label="Share" variant="secondary" style={{ flex: 1 }} onPress={() => {}} />
-            <KIBButton label="Edit" variant="secondary" style={{ flex: 1 }} onPress={() => router.push('/collections/create')} />
-          </View>
-        </View>
-      </ScrollView>
-
-      <KIBModal visible={confirm} onClose={() => setConfirm(false)} title="Delete collection?">
-        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
-          "{collection.name}" will be deleted. Saved items stay in your library.
-        </Text>
-        <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl }}>
-          <KIBButton label="Cancel" variant="secondary" style={{ flex: 1 }} onPress={() => setConfirm(false)} />
-          <KIBButton
-            label="Delete"
-            variant="danger"
-            style={{ flex: 1 }}
-            onPress={() => {
-              deleteCollection(collection.id);
-              router.back();
-            }}
-          />
-        </View>
-      </KIBModal>
+      <View style={{ paddingHorizontal: spacing.xl, gap: 8, paddingBottom: insets.bottom + 24 }}>
+        <KIBButton
+          label={renaming ? (busy ? 'Renaming…' : 'Save name') : 'Rename collection'}
+          variant="secondary"
+          disabled={busy}
+          onPress={async () => {
+            if (!id) return;
+            if (renaming) {
+              if (!name.trim()) return;
+              setBusy(true);
+              const res = await updateCollection(id, { name: name.trim() });
+              setBusy(false);
+              if (res.error) {
+                Alert.alert('Rename failed', res.error);
+                return;
+              }
+            }
+            setRenaming((r) => !r);
+          }}
+        />
+        <KIBButton
+          label="Delete collection"
+          variant="danger"
+          onPress={() => {
+            Alert.alert('Delete collection', 'Items stay in your library; only this grouping is removed.', [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
+                  if (!id) return;
+                  const res = await deleteCollection(id);
+                  if (res.error) {
+                    Alert.alert('Delete failed', res.error);
+                    return;
+                  }
+                  router.back();
+                },
+              },
+            ]);
+          }}
+        />
+        <KIBButton label="Back" variant="ghost" onPress={() => router.back()} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  cover: { height: 140, alignItems: 'center', justifyContent: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  renameInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    color: colors.text,
+    paddingHorizontal: 12,
+  },
 });

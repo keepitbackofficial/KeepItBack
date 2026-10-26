@@ -1,153 +1,157 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { searchItems } from '../../src/api/items';
 import { KIBContentRow } from '../../src/components/KIBContent';
-import { KIBEmptyState, KIBContentCardSkeleton } from '../../src/components/KIBPrimitives';
-import { searchItems } from '../../src/lib/search';
-import { useStore } from '../../src/store/useStore';
-import { colors, spacing, type } from '../../src/theme';
+import { KIBEmptyState, KIBFilterChip } from '../../src/components/KIBPrimitives';
+import { PLATFORM_FILTERS, PlatformFilter, SavedItem } from '../../src/types';
+import { colors, radius, spacing, type } from '../../src/theme';
 
-const SUGGESTED = ['places I wanted to visit', 'videos about React', 'Hyderabad', 'buy later'];
+const PAGE = 24;
 
-/** SCREEN 08/09 — SEARCH + live results with debounce (spec §45). */
+/**
+ * SCREEN — SEARCH. Debounced substring search against real user-owned
+ * rows in Supabase (title, note, creator, url, tags). Platform filters
+ * and pagination come straight from the query results. No semantic/AI
+ * search is claimed — this is honest PostgreSQL text matching.
+ */
 export default function Search() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { items, recentSearches, addRecentSearch, clearRecentSearches } = useStore();
   const [query, setQuery] = useState('');
-  const [debounced, setDebounced] = useState('');
-  const [searching, setSearching] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const [platform, setPlatform] = useState<PlatformFilter>('All');
+  const [results, setResults] = useState<SavedItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const runSearch = useCallback(
+    async (q: string, p: PlatformFilter, offset = 0, append = false) => {
+      const term = q.trim();
+      if (!term) {
+        setResults([]);
+        setTotal(0);
+        setSearched(false);
+        setError(null);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      const res = await searchItems({ query: term, platform: p, limit: PAGE, offset });
+      setLoading(false);
+      setSearched(true);
+      if ('error' in res) {
+        setError(res.error);
+        if (!append) setResults([]);
+        return;
+      }
+      setResults((prev) => (append ? [...prev, ...res.data.items] : res.data.items));
+      setTotal(res.data.total);
+    },
+    [],
+  );
 
   useEffect(() => {
-    setSearching(query.trim().length > 0 && query !== debounced);
-    const t = setTimeout(() => setDebounced(query), 250);
-    return () => clearTimeout(t);
-  }, [query, debounced]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => void runSearch(query, platform), 350);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, platform, runSearch]);
 
-  const results = useMemo(() => (debounced.trim() ? searchItems(items, debounced) : []), [items, debounced]);
-
-  useEffect(() => {
-    if (debounced.trim().length > 1) addRecentSearch(debounced.trim());
-  }, [debounced]);
-
-  const submitOrOpen = (q: string) => {
-    addRecentSearch(q);
-    setQuery(q);
+  const loadMore = () => {
+    if (results.length >= total || loading) return;
+    void runSearch(query, platform, results.length, true);
   };
 
+  const hasQuery = query.trim().length > 0;
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top + spacing.sm }}>
-      <View style={styles.searchRow}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Go back">
-          <Text style={{ color: colors.text, fontSize: 20 }}>←</Text>
-        </Pressable>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+      <Text style={[type.h3 as any, { color: colors.text, paddingHorizontal: spacing.xl }]}>Search your library</Text>
+      <View style={[styles.inputWrap, { marginHorizontal: spacing.xl, marginTop: spacing.md }]}>
         <TextInput
-          ref={inputRef}
           value={query}
           onChangeText={setQuery}
-          autoFocus
-          placeholder="Search saved content"
+          placeholder="Search saved links, notes, tags, creators…"
           placeholderTextColor={colors.textMuted}
-          accessibilityLabel="Search saved content"
+          autoCapitalize="none"
+          accessibilityLabel="Search saved items"
           style={styles.input}
         />
-        {query.length > 0 ? (
+        {hasQuery ? (
           <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
             <Text style={{ color: colors.textMuted, fontSize: 18 }}>×</Text>
           </Pressable>
         ) : null}
       </View>
 
-      {debounced.trim() === '' ? (
+      <View style={[styles.filterRow, { paddingHorizontal: spacing.xl }]}>
+        {PLATFORM_FILTERS.map((f) => (
+          <KIBFilterChip key={f} label={f} active={platform === f} onPress={() => setPlatform(f)} />
+        ))}
+      </View>
+
+      {error ? (
         <View style={{ padding: spacing.xl }}>
-          {recentSearches.length > 0 ? (
-            <>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={[type.h3 as any, { color: colors.text }]}>Recent searches</Text>
-                <Pressable onPress={clearRecentSearches} hitSlop={8}>
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>Clear</Text>
-                </Pressable>
-              </View>
-              {recentSearches.map((r) => (
-                <Pressable key={r} onPress={() => submitOrOpen(r)} style={styles.recentRow} accessibilityLabel={`Search ${r}`}>
-                  <Text style={{ marginRight: 10 }}>🕘</Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{r}</Text>
-                </Pressable>
-              ))}
-            </>
-          ) : null}
-          <Text style={[type.h3 as any, { color: colors.text, marginTop: spacing.xl }]}>Suggested</Text>
-          {SUGGESTED.map((s) => (
-            <Pressable key={s} onPress={() => submitOrOpen(s)} style={styles.recentRow} accessibilityLabel={`Try ${s}`}>
-              <Text style={{ marginRight: 10 }}>✨</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 14, fontStyle: 'italic' }}>"{s}"</Text>
-            </Pressable>
-          ))}
+          <Text style={{ color: colors.error, marginBottom: spacing.md }}>{error}</Text>
+          <KIBEmptyState emoji="⚠️" title="Search failed" message="The database couldn't complete this search." actionLabel="Try again" onAction={() => void runSearch(query, platform)} />
         </View>
-      ) : searching ? (
-        <View style={{ padding: spacing.xl, gap: spacing.md }}>
-          {[0, 1, 2, 3].map((i) => (
-            <KIBContentCardSkeleton key={i} />
-          ))}
-        </View>
-      ) : results.length === 0 ? (
+      ) : hasQuery && loading ? (
+        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xxl }} />
+      ) : hasQuery && searched && results.length === 0 ? (
         <KIBEmptyState
           emoji="🔍"
-          title="Nothing found"
-          message={`Try a broader keyword or search using what you remember.\n\nSuggestions: "travel", "food", "react"`}
+          title="No saved items match"
+          message={`Nothing in your library matches "${query.trim()}". Saved links never get invented here — check the spelling or save something new.`}
+        />
+      ) : results.length > 0 ? (
+        <FlatList
+          data={results}
+          keyExtractor={(i) => i.id}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 40, gap: spacing.md }}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListHeaderComponent={
+            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.md }}>
+              {total} match{total === 1 ? '' : 'es'}
+            </Text>
+          }
+          ListFooterComponent={
+            loading && results.length > 0 ? (
+              <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+            ) : (
+              <View />
+            )
+          }
+          renderItem={({ item }) => <KIBContentRow item={item} onPress={() => router.push(`/content/${item.id}`)} />}
         />
       ) : (
-        <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
-            <Text style={{ color: colors.textMuted, fontSize: 13 }}>
-              {results.length} result{results.length === 1 ? '' : 's'}
-            </Text>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>✨ ranked by relevance</Text>
-          </View>
-          <FlatList
-            data={results}
-            keyExtractor={(r) => r.item.id}
-            contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 40 }}
-            renderItem={({ item: r }) => (
-              <KIBContentRow
-                item={r.item}
-                keywords={r.item.aiState === 'done' ? r.item.aiKeywords : undefined}
-                onPress={() => router.push(`/content/${r.item.id}`)}
-              />
-            )}
-          />
-        </>
+        <KIBEmptyState
+          emoji="🔎"
+          title="Find anything you saved"
+          message="Search matches titles, notes, creator names, tag names, and the original URLs you actually saved — nothing from outside your account."
+        />
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  searchRow: {
+  container: { flex: 1, backgroundColor: colors.bg },
+  inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  input: {
-    flex: 1,
-    height: 46,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 23,
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-    fontSize: 15,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
   },
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
+  input: { flex: 1, height: 48, color: colors.text, fontSize: 15 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md, paddingBottom: spacing.sm },
 });

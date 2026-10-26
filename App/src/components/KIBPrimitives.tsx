@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { colors, radius, spacing, type } from '../theme';
 
 /** Reusable KIB components — spec §53. */
@@ -157,9 +157,9 @@ export function KIBEmptyState({
   );
 }
 
-export function KIBErrorState({ onRetry }: { onRetry: () => void }) {
+export function KIBErrorState({ onRetry, message }: { onRetry: () => void; message?: string | null }) {
   return (
-    <KIBEmptyState emoji="⚠️" title="Something went wrong" message="We couldn't load your library." actionLabel="Retry" onAction={onRetry} />
+    <KIBEmptyState emoji="⚠️" title="Something went wrong" message={message || "We couldn't load your library."} actionLabel="Retry" onAction={onRetry} />
   );
 }
 
@@ -197,15 +197,6 @@ export function SectionHeader({ title, actionLabel, onAction }: { title: string;
           <Text style={{ color: colors.accentSoft, fontSize: 13 }}>{actionLabel}</Text>
         </Pressable>
       ) : null}
-    </View>
-  );
-}
-
-export function OfflineBanner({ visible }: { visible: boolean }) {
-  if (!visible) return null;
-  return (
-    <View style={styles.offline}>
-      <Text style={{ color: colors.warning, fontSize: 12 }}>⚠ You're offline — saves are queued for sync</Text>
     </View>
   );
 }
@@ -263,10 +254,5 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
-  },
-  offline: {
-    backgroundColor: '#2A2312',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xl,
   },
 });
