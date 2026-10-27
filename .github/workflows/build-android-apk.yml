@@ -1,0 +1,82 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "App/**"
+      - ".github/workflows/build-android-apk.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build installable APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: App
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: https://api.keepitback.in
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check Supabase build configuration
+        run: |
+          if [ -z "$EXPO_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Add the GitHub Actions secret EXPO_PUBLIC_SUPABASE_ANON_KEY before building."
+            exit 1
+          fi
+          if [ "$EXPO_PUBLIC_SUPABASE_ANON_KEY" = '${EXPO_PUBLIC_SUPABASE_ANON_KEY}' ]; then
+            echo "::error::The Supabase key is an unresolved placeholder. Set the GitHub Actions secret EXPO_PUBLIC_SUPABASE_ANON_KEY."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: App/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Build release APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: keepitback-android-apk
+          path: App/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
