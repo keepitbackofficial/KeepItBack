@@ -1,6 +1,6 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,10 +18,11 @@ export default function SignUp() {
   const [code, setCode] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const screenOpacity = useRef(new Animated.Value(0)).current;
-  const screenOffset = useRef(new Animated.Value(8)).current;
+  const [screenOpacity] = useState(() => new Animated.Value(0));
+  const [screenOffset] = useState(() => new Animated.Value(8));
 
   useEffect(() => {
     Animated.parallel([
@@ -79,7 +80,7 @@ export default function SignUp() {
     try {
       const { error: authError } = await getSupabase().auth.resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: Linking.createURL('auth/callback') } });
       if (authError) setError(authError.message);
-      else setError('A new confirmation email was sent.');
+      else setNotice('A new confirmation email was sent.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not resend the confirmation email.');
     } finally { setBusy(false); }
@@ -105,6 +106,7 @@ export default function SignUp() {
             <KIBButton label={busy ? 'Sending…' : 'Resend email'} variant="secondary" onPress={() => void resendCode()} disabled={busy} />
           </>}
           {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
+          {notice ? <Text style={styles.noticeText} accessibilityLiveRegion="polite">{notice}</Text> : null}
         </View>
       </Animated.View>
       <Text style={{ color: colors.textMuted, textAlign: 'center' }}>Already have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-in', params: { shareUrl } } : '/(auth)/sign-in'} style={{ color: colors.accentSoft }}>Sign in</Link></Text>
@@ -116,4 +118,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
   input: { height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 15 },
   errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },
+  noticeText: { color: colors.success, fontSize: 13, textAlign: 'center' },
 });

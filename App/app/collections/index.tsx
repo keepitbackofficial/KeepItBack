@@ -7,6 +7,7 @@ import { KIBCollectionRow } from '../../src/components/KIBContent';
 import { KIBButton, KIBEmptyState, KIBErrorState } from '../../src/components/KIBPrimitives';
 import { useLibrary } from '../../src/store/useLibrary';
 import { colors, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 export default function CollectionsIndex() {
   const router = useRouter();
@@ -50,7 +51,7 @@ export default function CollectionsIndex() {
         />
       )}
 
-      <KIBButton label="Back" variant="ghost" onPress={() => router.back()} style={{ margin: spacing.xl }} />
+      <KIBButton label="Back" variant="ghost" onPress={() => safeBack(router, '/(tabs)/library')} style={{ margin: spacing.xl }} />
     </View>
   );
 }

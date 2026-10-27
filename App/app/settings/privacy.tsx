@@ -11,6 +11,7 @@ import { deleteDownloadedMedia } from '../../src/lib/downloads';
 import { KIBButton } from '../../src/components/KIBPrimitives';
 import { KIBPlatformLogo } from '../../src/components/KIBPlatformLogo';
 import { colors, radius, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 export default function PrivacySettings() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function PrivacySettings() {
         } catch {
           // The cloud account is already removed; local database may be unavailable on this build.
         }
-        try { await signOut(); } catch { /* The account may already have been removed server-side. */ }
+        try { await signOut('local'); } catch { /* The account may already have been removed server-side. */ }
         setBusy(false);
         router.replace('/(auth)/sign-in');
       } },
@@ -89,7 +90,7 @@ export default function PrivacySettings() {
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
         <KIBButton label={busy ? 'Working…' : 'Export my data'} variant="secondary" disabled={busy} onPress={() => void exportData()} />
         <KIBButton label={busy ? 'Working…' : 'Delete my account'} variant="danger" disabled={busy} onPress={deleteAccount} />
-        <KIBButton label="Back" variant="ghost" onPress={() => router.back()} />
+        <KIBButton label="Back" variant="ghost" onPress={() => safeBack(router, '/settings')} />
       </View>
       <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.lg }}>Exports include your saved link metadata, private notes and tags, collections, memberships, and connected account records. Device media is not uploaded to the cloud export.</Text>
     </View>

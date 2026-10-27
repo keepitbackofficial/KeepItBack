@@ -69,7 +69,14 @@ function instagramCaption(description: string | undefined): string | undefined {
   return caption && caption !== description ? cleanText(caption, 300) : undefined;
 }
 
-function extractMetadata(payload: unknown): LinkMetadata | null {
+function microlinkImageUrl(target: URL): string {
+  const endpoint = new URL('https://api.microlink.io');
+  endpoint.searchParams.set('url', target.toString());
+  endpoint.searchParams.set('embed', 'image.url');
+  return endpoint.toString();
+}
+
+function extractMetadata(payload: unknown, target: URL): LinkMetadata | null {
   if (!payload || typeof payload !== 'object') return null;
   const root = payload as Record<string, unknown>;
   if (root.status !== 'success') return null;
@@ -89,7 +96,9 @@ function extractMetadata(payload: unknown): LinkMetadata | null {
   const metadata: LinkMetadata = {
     title,
     description,
-    thumbnail_url: thumbnail,
+    // Instagram's CDN image URLs can be short-lived or reject native image
+    // requests. Serve the same public image through Microlink's asset embed.
+    thumbnail_url: thumbnail ? microlinkImageUrl(target) : undefined,
     creator_name: creatorName,
     creator_handle: authorHandle(data.author_url) ?? handleFromTitle(rawTitle),
   };
@@ -133,7 +142,7 @@ Deno.serve(async (req: Request) => {
       signal: controller.signal,
     });
     if (!response.ok) return json({ metadata: null });
-    const metadata = extractMetadata(await response.json());
+    const metadata = extractMetadata(await response.json(), target);
     return json({ metadata });
   } catch {
     return json({ metadata: null });

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { acceptCollectionInvite } from '../../src/api/collections';
 import { KIBButton } from '../../src/components/KIBPrimitives';
 import { colors, radius, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 export default function JoinCollection() {
   const { code: inviteParam } = useLocalSearchParams<{ code?: string }>();
@@ -41,7 +42,7 @@ export default function JoinCollection() {
           }
           router.replace(`/collections/${result.data.collectionId}`);
         }} />
-        <KIBButton label="Cancel" variant="ghost" onPress={() => router.back()} />
+        <KIBButton label="Cancel" variant="ghost" onPress={() => safeBack(router, '/collections')} />
       </View>
     </View>
   );

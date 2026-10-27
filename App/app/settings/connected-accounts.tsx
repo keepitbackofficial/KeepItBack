@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from '../../src/lib/supabase';
 import { fetchConnectedAccounts, verifyLinkCode, VerifyCodeResult } from '../../src/api/accounts';
 import { KIBButton } from '../../src/components/KIBPrimitives';
 import { colors, radius, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 /**
  * SCREEN — CONNECTED ACCOUNTS. Documents how the Instagram DM code link
@@ -118,7 +119,7 @@ export default function ConnectedAccounts() {
           ) : null}
         </View>
 
-        <KIBButton label="Done" variant="ghost" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
+        <KIBButton label="Done" variant="ghost" onPress={() => safeBack(router, '/settings')} style={{ marginTop: spacing.md }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

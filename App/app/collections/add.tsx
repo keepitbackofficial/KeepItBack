@@ -8,6 +8,7 @@ import { KIBContentRow } from '../../src/components/KIBContent';
 import { KIBButton } from '../../src/components/KIBPrimitives';
 import { useLibrary } from '../../src/store/useLibrary';
 import { colors, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 export default function AddToCollection() {
   const { collectionId } = useLocalSearchParams<{ collectionId: string }>();
@@ -66,7 +67,7 @@ export default function AddToCollection() {
           <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>No saved links are available to add. New links you save will appear here.</Text>
         </View>
       )}
-      <KIBButton label="Done" variant="ghost" onPress={() => router.back()} style={{ margin: spacing.xl }} />
+      <KIBButton label="Done" variant="ghost" onPress={() => safeBack(router, collectionId ? `/collections/${collectionId}` : '/collections')} style={{ margin: spacing.xl }} />
     </View>
   );
 }

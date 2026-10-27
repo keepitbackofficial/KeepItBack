@@ -1,6 +1,6 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,8 +19,8 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const formOpacity = useRef(new Animated.Value(0)).current;
-  const formOffset = useRef(new Animated.Value(8)).current;
+  const [formOpacity] = useState(() => new Animated.Value(0));
+  const [formOffset] = useState(() => new Animated.Value(8));
 
   useEffect(() => {
     Animated.parallel([

@@ -44,11 +44,13 @@ npx expo run:ios
 ## 2. Configure Supabase Auth
 
 1. Create a Supabase project at [supabase.com](https://supabase.com).
-2. Copy the project URL and public anon/publishable key into `App/.env`:
+2. Set the API URL and public anon/publishable key in `App/.env`:
    ```
-   EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   EXPO_PUBLIC_SUPABASE_URL=https://api.keepitback.in
    EXPO_PUBLIC_SUPABASE_ANON_KEY=<public-anon-or-publishable-key>
    ```
+   `api.keepitback.in` is the API hostname for this deployment. If you connect
+   a different Supabase project, use its configured project URL or custom domain.
    Never put the service-role key in the app environment.
 3. In Supabase Dashboard → **Authentication → URL Configuration**, add the app
    callback URL `keepitback://auth/callback` to the redirect allowlist. While
@@ -57,8 +59,9 @@ npx expo run:ios
 4. In **Authentication → Sign In / Providers → Email**, enable email and
    password sign-in. Email confirmation can be enabled or disabled. If enabled,
    the app accepts both the confirmation link and a numeric code. To support
-   code entry, set the email confirmation template to include `{{ .Token }}`;
-   the default confirmation link is also handled by the app callback.
+   numeric code entry, set the relevant email templates to include
+   `{{ .Token }}`; links based on `{{ .ConfirmationURL }}` are also handled by
+   the app callback.
 5. Restart Expo after editing `.env`:
    ```bash
    npx expo start --clear
@@ -127,7 +130,7 @@ removes KeepItBack records, and deletes the Supabase Auth user with a
 server-only service-role key.
 
 Webhook wiring: Meta App → Instagram Messaging webhooks → callback URL
-`https://<project-ref>.supabase.co/functions/v1/instagram-webhook`. The
+`https://api.keepitback.in/functions/v1/instagram-webhook`. The
 function verifies `X-Hub-Signature-256`, deduplicates messages, resolves the
 sender's Instagram-scoped id to a connected account, and inserts the link with
 `source='instagram_dm'` using the service role.

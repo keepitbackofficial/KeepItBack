@@ -8,6 +8,7 @@ import { fetchProfile, updateNotificationPreferences } from '../../src/api/profi
 import { NotificationPreferences } from '../../src/types';
 import { colors, radius, spacing, type } from '../../src/theme';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { safeBack } from '../../src/lib/navigation';
 
 const DEFAULTS: NotificationPreferences = { download_complete: true, sync_issues: true, shared_collection_updates: true };
 
@@ -43,7 +44,7 @@ export default function NotificationSettings() {
       <Preference title="Download complete" detail="A local device notification when a direct media download finishes." value={preferences.download_complete} onChange={(value) => void update('download_complete', value)} />
       <Preference title="Sync issues" detail="Reserved for local retry and sync recovery notices." value={preferences.sync_issues} onChange={(value) => void update('sync_issues', value)} />
       <Preference title="Shared collection updates" detail="Push delivery needs server push credentials; this preference is saved for when delivery is configured." value={preferences.shared_collection_updates} onChange={(value) => void update('shared_collection_updates', value)} />
-      <View style={{ marginTop: spacing.md }}><KIBButton label="Back" variant="ghost" onPress={() => router.back()} /></View>
+      <View style={{ marginTop: spacing.md }}><KIBButton label="Back" variant="ghost" onPress={() => safeBack(router, '/settings')} /></View>
     </View>
   );
 }

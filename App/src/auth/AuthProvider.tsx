@@ -11,19 +11,18 @@ type AuthContextValue = {
   userId: string | null;
   user: User | null;
   session: Session | null;
-  signOut: () => Promise<void>;
+  signOut: (scope?: 'global' | 'local' | 'others') => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(() => !isSupabaseConfigured);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setActiveUser(null);
-      setIsLoaded(true);
       return;
     }
 
@@ -65,9 +64,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => subscription.remove();
   }, []);
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (scope: 'global' | 'local' | 'others' = 'global') => {
     if (!isSupabaseConfigured) return;
-    const { error } = await getSupabase().auth.signOut();
+    const { error } = await getSupabase().auth.signOut({ scope });
     if (error) throw error;
   }, []);
 

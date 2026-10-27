@@ -8,6 +8,7 @@ import { KIBContentRow } from '../../src/components/KIBContent';
 import { KIBButton, KIBEmptyState, KIBErrorState } from '../../src/components/KIBPrimitives';
 import { Collection, SavedItem } from '../../src/types';
 import { colors, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 export default function CollectionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -165,13 +166,13 @@ export default function CollectionDetail() {
                     Alert.alert('Delete failed', res.error);
                     return;
                   }
-                  router.back();
+                  safeBack(router, '/collections');
                 },
               },
             ]);
           }}
         /> : null}
-        <KIBButton label="Back" variant="ghost" onPress={() => router.back()} />
+        <KIBButton label="Back" variant="ghost" onPress={() => safeBack(router, '/collections')} />
       </View>
 
       {sharing ? (

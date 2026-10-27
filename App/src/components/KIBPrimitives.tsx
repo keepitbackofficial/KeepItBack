@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
 import { KIBText as Text } from './KIBText';
 import { colors, fontFamily, radius, spacing, type } from '../theme';
@@ -16,9 +16,9 @@ export function KIBMotionPressable({
   enter = false,
   ...props
 }: Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle>; enter?: boolean }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const entrance = useRef(new Animated.Value(enter ? 0 : 1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
+  const [opacity] = useState(() => new Animated.Value(1));
+  const [entrance] = useState(() => new Animated.Value(enter ? 0 : 1));
 
   useEffect(() => {
     if (!enter) return;

@@ -14,6 +14,7 @@ import { logProductEvent } from '../src/api/analytics';
 import { useLibrary } from '../src/store/useLibrary';
 import { detectContentType, detectPlatform, isValidUrl } from '../src/lib/platform';
 import { colors, radius, spacing, type } from '../src/theme';
+import { safeBack } from '../src/lib/navigation';
 
 /**
  * SCREEN — SAVE URL. One action: paste, hit save. The write goes to
@@ -33,6 +34,7 @@ export default function SaveUrl() {
   const [previewMetadata, setPreviewMetadata] = useState<LinkMetadata | null>(null);
   const [metadataForUrl, setMetadataForUrl] = useState<string | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null);
   const autoSaveStarted = useRef<string | null>(null);
 
   const trimmed = url.trim();
@@ -137,7 +139,7 @@ export default function SaveUrl() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xl }]}>
       <View style={styles.topRow}>
-        <Pressable onPress={() => router.back()} hitSlop={8} accessibilityLabel="Cancel save">
+        <Pressable onPress={() => safeBack(router, '/(tabs)/home')} hitSlop={8} accessibilityLabel="Cancel save">
           <Text style={{ color: colors.textSecondary, fontSize: 15 }}>Cancel</Text>
         </Pressable>
         <Text style={{ color: colors.text, fontSize: 15, fontWeight: '600' }}>Save</Text>
@@ -171,8 +173,13 @@ export default function SaveUrl() {
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         {platform ? (
           <View style={styles.preview}>
-            {shownMetadata?.thumbnail_url ? (
-              <Image source={{ uri: shownMetadata.thumbnail_url }} resizeMode="cover" style={styles.previewImage} />
+            {shownMetadata?.thumbnail_url && failedPreviewUrl !== shownMetadata.thumbnail_url ? (
+              <Image
+                source={{ uri: shownMetadata.thumbnail_url }}
+                resizeMode="cover"
+                onError={() => setFailedPreviewUrl(shownMetadata.thumbnail_url ?? null)}
+                style={styles.previewImage}
+              />
             ) : (
               <View style={styles.previewImageFallback}>
                 <KIBPlatformLogo platform={platform} size={22} />
@@ -185,7 +192,7 @@ export default function SaveUrl() {
               <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 3 }} numberOfLines={1}>
                 {shownMetadata?.creator_handle ?? shownMetadata?.creator_name ?? (metadataLoading ? 'Fetching creator details…' : 'Creator details unavailable')}
               </Text>
-              {platform === 'Instagram' && metadataForUrl === trimmed && !shownMetadata && !metadataLoading ? (
+              {platform === 'Instagram' && metadataForUrl === trimmed && (!shownMetadata || failedPreviewUrl === shownMetadata.thumbnail_url) && !metadataLoading ? (
                 <Pressable onPress={() => void retryPreview()} accessibilityRole="button" accessibilityLabel="Retry Instagram preview">
                   <Text style={{ color: colors.accent, fontSize: 12, marginTop: 3 }}>Retry preview</Text>
                 </Pressable>

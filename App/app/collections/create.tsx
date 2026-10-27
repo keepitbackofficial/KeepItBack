@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLibrary } from '../../src/store/useLibrary';
 import { colors, radius, spacing, type } from '../../src/theme';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { safeBack } from '../../src/lib/navigation';
 
 const EMOJIS = ['📁', '🏷️', '🎬', '🍳', '✈️', '💻', '💪', '💡', '🎧', '📚'];
 
@@ -30,7 +31,7 @@ export default function CreateCollection() {
       else setError(res?.error ?? 'Could not create the collection.');
       return;
     }
-    router.back();
+    safeBack(router, '/collections');
   };
 
   return (
@@ -49,7 +50,7 @@ export default function CreateCollection() {
       {error ? <Text style={{ color: colors.error, marginTop: spacing.md, fontSize: 13 }}>{error}</Text> : null}
       <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
         <KIBButton label={busy ? 'Creating…' : 'Create'} onPress={submit} disabled={!name.trim() || busy} />
-        <KIBButton label="Cancel" variant="ghost" onPress={() => router.back()} />
+        <KIBButton label="Cancel" variant="ghost" onPress={() => safeBack(router, '/collections')} />
       </View>
     </View>
   );

@@ -12,6 +12,7 @@ import { getCachedItems, getPendingLocalItems } from '../../src/lib/localStore';
 import { KIBButton, KIBEmptyState } from '../../src/components/KIBPrimitives';
 import { SavedItem } from '../../src/types';
 import { colors, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 type DownloadRow = { itemId: string; uri: string; size: number; title: string; item?: SavedItem };
 
@@ -120,7 +121,7 @@ export default function Downloads() {
         />
       )}
       {rows.length ? <KIBButton label="Remove all downloads" variant="secondary" onPress={clearAll} style={{ marginHorizontal: spacing.xl }} /> : null}
-      <KIBButton label="Back" variant="ghost" onPress={() => router.back()} style={{ margin: spacing.xl }} />
+      <KIBButton label="Back" variant="ghost" onPress={() => safeBack(router, '/settings')} style={{ margin: spacing.xl }} />
     </View>
   );
 }

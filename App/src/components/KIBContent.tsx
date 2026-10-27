@@ -1,13 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, TextStyle, View } from 'react-native';
 import { KIBText as Text } from './KIBText';
 import { KIBPlatformLogo } from './KIBPlatformLogo';
 import { KIBMotionPressable } from './KIBPrimitives';
 import { colors, radius, spacing, type } from '../theme';
 import { Collection, ContentType, Platform, SavedItem } from '../types';
+import { fetchLinkMetadata } from '../api/linkMetadata';
+import { updateItem } from '../api/items';
+import { useLibrary } from '../store/useLibrary';
 
 function creatorLabel(item: SavedItem): string {
   return item.creator_handle ?? item.creator_name ?? 'Unknown creator';
+}
+
+const thumbnailRefreshes = new Map<string, Promise<string | null>>();
+
+function refreshInstagramThumbnail(item: SavedItem): Promise<string | null> {
+  const itemId = item.remote_id ?? item.id;
+  if (itemId.startsWith('local:')) return Promise.resolve(null);
+  const active = thumbnailRefreshes.get(itemId);
+  if (active) return active;
+
+  let request: Promise<string | null>;
+  request = fetchLinkMetadata(item.original_url, { force: true }).then(async (metadata) => {
+    const thumbnailUrl = metadata?.thumbnail_url;
+    if (!thumbnailUrl || thumbnailUrl === item.thumbnail_url) return null;
+    const result = await updateItem(itemId, { thumbnail_url: thumbnailUrl });
+    if ('error' in result) return thumbnailUrl;
+    void useLibrary.getState().loadItems({ force: true });
+    return thumbnailUrl;
+  }).catch(() => null).finally(() => {
+    if (thumbnailRefreshes.get(itemId) === request) thumbnailRefreshes.delete(itemId);
+  });
+  thumbnailRefreshes.set(itemId, request);
+  return request;
 }
 
 /** Real preview when available; otherwise a neutral source placeholder, never sample imagery. */
@@ -16,15 +42,32 @@ export function KIBThumbnail({
   height = 110,
   borderRadius = radius.md,
 }: {
-  item: Pick<SavedItem, 'id' | 'title' | 'platform' | 'content_type' | 'thumbnail_url'>;
+  item: SavedItem;
   height?: number;
   borderRadius?: number;
 }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
+  const [refreshAttemptedFor, setRefreshAttemptedFor] = useState<string | null>(null);
+  const thumbnailUrl = refreshedUrl ?? item.thumbnail_url ?? null;
+  const showImage = Boolean(thumbnailUrl && failedUrl !== thumbnailUrl);
+  const itemId = item.remote_id ?? item.id;
+
+  const handleImageError = () => {
+    if (!thumbnailUrl) return;
+    setFailedUrl(thumbnailUrl);
+    if (item.platform !== 'Instagram' || refreshAttemptedFor === itemId) return;
+    setRefreshAttemptedFor(itemId);
+    void refreshInstagramThumbnail(item).then((nextUrl) => {
+      if (nextUrl && nextUrl !== thumbnailUrl) setRefreshedUrl(nextUrl);
+    });
+  };
+
   const vid = ['Video', 'Reel', 'Short'].includes(item.content_type as ContentType);
   return (
     <View style={{ height, borderRadius, overflow: 'hidden', backgroundColor: colors.surface3 }}>
-      {item.thumbnail_url ? (
-        <Image source={{ uri: item.thumbnail_url }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+      {showImage ? (
+        <Image source={{ uri: thumbnailUrl! }} resizeMode="cover" onError={handleImageError} style={{ width: '100%', height: '100%' }} />
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5 }}>
           <KIBPlatformLogo platform={item.platform as Platform} size={height * 0.3} />
@@ -33,7 +76,7 @@ export function KIBThumbnail({
           </Text>
         </View>
       )}
-      {item.thumbnail_url ? <View style={{ position: 'absolute', top: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
+      {showImage ? <View style={{ position: 'absolute', top: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
       {vid ? (
         <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(28,23,24,0.78)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
           <Text style={{ color: '#fff', fontSize: 10 }}>{item.content_type}</Text>

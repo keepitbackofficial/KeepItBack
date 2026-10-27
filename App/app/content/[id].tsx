@@ -17,6 +17,7 @@ import { useAuth } from '../../src/auth/AuthProvider';
 import { useLibrary } from '../../src/store/useLibrary';
 import { SavedItem } from '../../src/types';
 import { colors, radius, spacing, type } from '../../src/theme';
+import { safeBack } from '../../src/lib/navigation';
 
 /**
  * SCREEN — CONTENT DETAILS. Shows only fields that actually exist in the
@@ -32,6 +33,7 @@ export default function ContentDetails() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewBusy, setPreviewBusy] = useState(false);
+  const [failedThumbnailUrl, setFailedThumbnailUrl] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [note, setNote] = useState('');
   const [title, setTitle] = useState('');
@@ -209,7 +211,9 @@ export default function ContentDetails() {
       } = {};
       if (metadata.title && item.title === `${item.platform} ${item.content_type}`) patch.title = metadata.title;
       if (metadata.description && !item.description) patch.description = metadata.description;
-      if (metadata.thumbnail_url && !item.thumbnail_url) patch.thumbnail_url = metadata.thumbnail_url;
+      if (metadata.thumbnail_url && (!item.thumbnail_url || failedThumbnailUrl === item.thumbnail_url)) {
+        patch.thumbnail_url = metadata.thumbnail_url;
+      }
       if (metadata.creator_name && !item.creator_name) patch.creator_name = metadata.creator_name;
       if (metadata.creator_handle && !item.creator_handle) patch.creator_handle = metadata.creator_handle;
       if (!Object.keys(patch).length) {
@@ -281,7 +285,7 @@ export default function ContentDetails() {
             if (userId && item?.remote_id) await removeCachedItem(userId, item.remote_id).catch(() => undefined);
             useLibrary.getState().removeLocalItem(id);
             if (userId) void logProductEvent(userId, 'item_deleted');
-            router.back();
+            safeBack(router, '/(tabs)/library');
           } catch (e: any) {
             Alert.alert('Delete failed', describeDbError(e));
           }
@@ -336,7 +340,7 @@ export default function ContentDetails() {
     return (
       <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
         <Text style={{ color: colors.error, textAlign: 'center' }}>{loadError}</Text>
-        <KIBButton label="Back" variant="secondary" onPress={() => router.back()} style={{ marginTop: spacing.lg, alignSelf: 'stretch' }} />
+        <KIBButton label="Back" variant="secondary" onPress={() => safeBack(router, '/(tabs)/library')} style={{ marginTop: spacing.lg, alignSelf: 'stretch' }} />
       </View>
     );
   }
@@ -364,7 +368,18 @@ export default function ContentDetails() {
         </View>
         <Text style={[type.h2 as any, { color: colors.text, marginTop: spacing.md }]}>{item.title}</Text>
         {item.thumbnail_url ? (
-          <Image source={{ uri: item.thumbnail_url }} resizeMode="cover" style={{ width: '100%', height: 190, borderRadius: radius.md, marginTop: spacing.md, backgroundColor: colors.surface3 }} />
+          <View style={{ width: '100%', height: 190, borderRadius: radius.md, marginTop: spacing.md, backgroundColor: colors.surface3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+            {failedThumbnailUrl === item.thumbnail_url ? (
+              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Cover unavailable · retry preview below</Text>
+            ) : (
+              <Image
+                source={{ uri: item.thumbnail_url }}
+                resizeMode="cover"
+                onError={() => setFailedThumbnailUrl(item.thumbnail_url ?? null)}
+                style={{ width: '100%', height: '100%' }}
+              />
+            )}
+          </View>
         ) : null}
         {item.category ? <Text style={{ color: colors.accent, marginTop: 4 }}>{item.category}</Text> : null}
         {item.sync_state === 'pending' || item.sync_state === 'error' ? <Text style={{ color: colors.warning, marginTop: 4, fontSize: 12 }}>{item.sync_state === 'error' ? 'Sync needs a retry' : 'Waiting to sync from this device'}</Text> : null}
@@ -411,7 +426,7 @@ export default function ContentDetails() {
               await Linking.openURL(item.original_url);
             }}
           />
-          {item.platform === 'Instagram' && (!item.thumbnail_url || (!item.creator_handle && !item.creator_name) || item.title === `${item.platform} ${item.content_type}`) && (!item.id.startsWith('local:') || Boolean(item.remote_id)) ? (
+          {item.platform === 'Instagram' && (!item.thumbnail_url || failedThumbnailUrl === item.thumbnail_url || (!item.creator_handle && !item.creator_name) || item.title === `${item.platform} ${item.content_type}`) && (!item.id.startsWith('local:') || Boolean(item.remote_id)) ? (
             <KIBButton label={previewBusy ? 'Fetching preview…' : 'Retry Instagram preview'} variant="secondary" disabled={previewBusy} onPress={() => void retryInstagramPreview()} />
           ) : null}
           <View style={styles.actionRow}>
@@ -421,7 +436,7 @@ export default function ContentDetails() {
           </View>
           <KIBButton label={downloadBusy ? 'Downloading…' : downloaded ? 'Open device download' : directMediaReason(item) ? 'Download unavailable' : 'Download direct media'} variant="secondary" disabled={downloadBusy || (!downloaded && Boolean(directMediaReason(item)))} onPress={beginDownload} />
           <KIBButton label="Delete saved item" variant="danger" onPress={confirmDelete} />
-          <KIBButton label="Back to library" variant="ghost" onPress={() => router.back()} />
+          <KIBButton label="Back to library" variant="ghost" onPress={() => router.replace('/(tabs)/library')} />
         </View>
       </View>
 
