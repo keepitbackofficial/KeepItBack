@@ -5,14 +5,14 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "in.app.keepitback"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F3E4E0",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -27,8 +27,13 @@
       "expo-router",
       "expo-web-browser",
       "expo-status-bar",
-      "@clerk/expo",
       "expo-secure-store",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
       [
         "expo-share-intent",
         {
@@ -42,7 +47,9 @@
             "NSExtensionActivationSupportsWebPageWithMaxCount": 1
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-sharing"
     ],
     "scheme": "keepitback",
     "extra": {

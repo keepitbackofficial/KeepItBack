@@ -1,11 +1,12 @@
-import { useAuth } from '@clerk/expo';
+import { useAuth } from '../src/auth/AuthProvider';
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { KIBText as Text } from '../src/components/KIBText';
 import { colors, spacing, type } from '../src/theme';
 
 /**
- * SCREEN — SPLASH / SESSION RESTORATION. Clerk restores the real session
- * from secure storage before any routing decision is made.
+ * SCREEN — SPLASH / SESSION RESTORATION. Supabase restores the real session
+ * from persistent device storage before any routing decision is made.
  */
 export default function Splash() {
   const { isLoaded, isSignedIn } = useAuth();

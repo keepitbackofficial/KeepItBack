@@ -1,8 +1,66 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
-import { colors, radius, spacing, type } from '../theme';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+import { KIBText as Text } from './KIBText';
+import { colors, fontFamily, radius, spacing, type } from '../theme';
 
 /** Reusable KIB components — spec §53. */
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export function KIBMotionPressable({
+  children,
+  disabled,
+  onPressIn,
+  onPressOut,
+  style,
+  enter = false,
+  ...props
+}: Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle>; enter?: boolean }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+  const entrance = useRef(new Animated.Value(enter ? 0 : 1)).current;
+
+  useEffect(() => {
+    if (!enter) return;
+    entrance.setValue(0);
+    Animated.timing(entrance, { toValue: 1, duration: 220, delay: 20, useNativeDriver: true }).start();
+    return () => entrance.stopAnimation();
+  }, [enter, entrance]);
+
+  const pressIn: PressableProps['onPressIn'] = (event) => {
+    onPressIn?.(event);
+    if (disabled) return;
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 0.975, stiffness: 300, damping: 18, mass: 0.7, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0.9, duration: 90, useNativeDriver: true }),
+    ]).start();
+  };
+  const pressOut: PressableProps['onPressOut'] = (event) => {
+    onPressOut?.(event);
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, stiffness: 300, damping: 18, mass: 0.7, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+    ]).start();
+  };
+
+  return (
+    <AnimatedPressable
+      {...props}
+      disabled={disabled}
+      onPressIn={pressIn}
+      onPressOut={pressOut}
+      style={[style, {
+        opacity: Animated.multiply(disabled ? 0.5 : opacity, entrance),
+        transform: [
+          { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
+          { scale },
+        ],
+      }]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
 
 export function KIBButton({
   label,
@@ -30,34 +88,34 @@ export function KIBButton({
   const fg = variant === 'primary' ? '#fff' : variant === 'danger' ? '#fff' : colors.text;
   const border = variant === 'ghost' || variant === 'secondary' ? colors.border : 'transparent';
   return (
-    <Pressable
+    <KIBMotionPressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [
+      style={[
         styles.button,
-        { backgroundColor: bg, borderColor: border, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
+        { backgroundColor: bg, borderColor: border, opacity: disabled ? 0.5 : 1 },
         style,
       ]}
     >
       {icon ? <Text style={{ fontSize: 16, marginRight: 6 }}>{icon}</Text> : null}
-      <Text style={{ color: fg, fontSize: 15, fontWeight: '600' }}>{label}</Text>
-    </Pressable>
+      <Text style={{ color: fg, fontSize: 14, fontFamily: fontFamily.bodyMedium, fontWeight: '600' }}>{label}</Text>
+    </KIBMotionPressable>
   );
 }
 
 export function KIBIconButton({ icon, onPress, label, style }: { icon: string; onPress?: () => void; label: string; style?: ViewStyle }) {
   return (
-    <Pressable
+    <KIBMotionPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={8}
-      style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.6 : 1 }, style]}
+      style={[styles.iconButton, style]}
     >
-      <Text style={{ fontSize: 20 }}>{icon}</Text>
-    </Pressable>
+      <Text style={{ fontSize: 20, color: colors.accent }}>{icon}</Text>
+    </KIBMotionPressable>
   );
 }
 
@@ -78,7 +136,7 @@ export function KIBTag({ label, onRemove, small }: { label: string; onRemove?: (
 
 export function KIBFilterChip({ label, active, onPress, icon }: { label: string; active?: boolean; onPress?: () => void; icon?: string }) {
   return (
-    <Pressable
+    <KIBMotionPressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
@@ -86,7 +144,7 @@ export function KIBFilterChip({ label, active, onPress, icon }: { label: string;
     >
       {icon ? <Text style={{ fontSize: 13, marginRight: 4 }}>{icon}</Text> : null}
       <Text style={[styles.chipText, active && { color: '#fff' }]}>{label}</Text>
-    </Pressable>
+    </KIBMotionPressable>
   );
 }
 
@@ -109,7 +167,7 @@ export function KIBAvatar({ name, size = 40 }: { name: string; size?: number }) 
         justifyContent: 'center',
       }}
     >
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
+      <Text style={{ color: '#fff', fontFamily: fontFamily.bodyStrong, fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
     </View>
   );
 }
@@ -194,7 +252,7 @@ export function SectionHeader({ title, actionLabel, onAction }: { title: string;
       <Text style={[type.h3 as TextStyle, { color: colors.text }]}>{title}</Text>
       {actionLabel ? (
         <Pressable onPress={onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={actionLabel}>
-          <Text style={{ color: colors.accentSoft, fontSize: 13 }}>{actionLabel}</Text>
+        <Text style={{ color: colors.accent, fontFamily: fontFamily.bodyMedium, fontSize: 13 }}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>

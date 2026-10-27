@@ -2,12 +2,8 @@
 -- Generated for PRD v2 §8. Run manually via the Supabase SQL Editor.
 --
 -- Identity model:
---   Clerk is the identity provider. Supabase third-party auth must be
---   configured (Supabase Dashboard → Authentication → Third-Party Auth →
---   Clerk) so that Clerk-issued JWTs are trusted and every request carries
---   `auth.jwt()->>'sub'` = the Clerk user id (text).
---   Clerk user IDs are TEXT everywhere — never cast `sub` to UUID
---   (do NOT use auth.uid(); it casts to uuid and fails for Clerk subjects).
+--   Supabase Auth is the identity provider. User-owned rows store `sub` as
+--   text so it can be compared directly with auth.jwt()->>'sub'.
 
 -- ---------------------------------------------------------------------------
 -- extensions
@@ -129,7 +125,7 @@ create index if not exists connected_accounts_user_idx on public.connected_accou
 
 -- ---------------------------------------------------------------------------
 -- account_link_codes — SERVER-ONLY. RLS is enabled with NO policies, so
--- anon/authenticated clients (Clerk or Supabase keys in the app) can never
+-- anon/authenticated clients (the public app key) can never
 -- read code hashes. Only the service role (Edge Functions) accesses this.
 -- ---------------------------------------------------------------------------
 create table if not exists public.account_link_codes (
@@ -206,8 +202,8 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- RLS on every user-owned table. Policies compare user_id (TEXT) to the
--- verified Clerk JWT subject. `to authenticated` requires a trusted token,
--- which Supabase validates with the configured third-party provider keys.
+-- verified Supabase Auth JWT subject. `to authenticated` requires a valid
+-- Supabase Auth session.
 -- ---------------------------------------------------------------------------
 alter table public.profiles            enable row level security;
 alter table public.saved_items         enable row level security;

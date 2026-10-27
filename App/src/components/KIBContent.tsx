@@ -1,44 +1,52 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextStyle, View } from 'react-native';
-import { paletteFor, colors, radius, spacing, type } from '../theme';
-import { platformColor, platformEmoji } from '../lib/platform';
+import { Image, Modal, Pressable, StyleSheet, TextStyle, View } from 'react-native';
+import { KIBText as Text } from './KIBText';
+import { KIBPlatformLogo } from './KIBPlatformLogo';
+import { KIBMotionPressable } from './KIBPrimitives';
+import { colors, radius, spacing, type } from '../theme';
 import { Collection, ContentType, Platform, SavedItem } from '../types';
 
-/** Gradient-ish thumbnail placeholder + platform badge. */
+function creatorLabel(item: SavedItem): string {
+  return item.creator_handle ?? item.creator_name ?? 'Unknown creator';
+}
+
+/** Real preview when available; otherwise a neutral source placeholder, never sample imagery. */
 export function KIBThumbnail({
   item,
   height = 110,
   borderRadius = radius.md,
 }: {
-  item: Pick<SavedItem, 'id' | 'title' | 'platform' | 'content_type'>;
+  item: Pick<SavedItem, 'id' | 'title' | 'platform' | 'content_type' | 'thumbnail_url'>;
   height?: number;
   borderRadius?: number;
 }) {
-  const [from, to] = paletteFor(item.id + item.title);
   const vid = ['Video', 'Reel', 'Short'].includes(item.content_type as ContentType);
   return (
-    <View style={{ height, borderRadius, overflow: 'hidden', backgroundColor: from }}>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: to, opacity: 0.35 }} />
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: height * 0.34 }}>{platformEmoji[item.platform as Platform]}</Text>
-      </View>
-      <View style={{ position: 'absolute', top: 6, left: 6 }}>
-        <KIBPlatformBadge platform={item.platform as Platform} />
-      </View>
+    <View style={{ height, borderRadius, overflow: 'hidden', backgroundColor: colors.surface3 }}>
+      {item.thumbnail_url ? (
+        <Image source={{ uri: item.thumbnail_url }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+      ) : (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <KIBPlatformLogo platform={item.platform as Platform} size={height * 0.3} />
+          <Text style={{ color: colors.textMuted, fontSize: 10 }} numberOfLines={1}>
+            Preview unavailable
+          </Text>
+        </View>
+      )}
+      {item.thumbnail_url ? <View style={{ position: 'absolute', top: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
       {vid ? (
-        <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 }}>
-          <Text style={{ color: '#fff', fontSize: 10 }}>{item.content_type === 'Video' ? '▶' : '⚡'}</Text>
+        <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(28,23,24,0.78)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
+          <Text style={{ color: '#fff', fontSize: 10 }}>{item.content_type}</Text>
         </View>
       ) : null}
     </View>
   );
 }
 
-export function KIBPlatformBadge({ platform, withLabel }: { platform: Platform; withLabel?: boolean }) {
+export function KIBPlatformBadge({ platform }: { platform: Platform }) {
   return (
-    <View style={[styles.badge, withLabel && { paddingHorizontal: 8, flexDirection: 'row', gap: 4 }]}>
-      <Text style={{ fontSize: withLabel ? 11 : 13 }}>{platformEmoji[platform]}</Text>
-      {withLabel ? <Text style={{ color: '#fff', fontSize: 11 }}>{platform}</Text> : null}
+    <View style={styles.badge} accessibilityLabel={`${platform} logo`}>
+      <KIBPlatformLogo platform={platform} size={14} />
     </View>
   );
 }
@@ -46,7 +54,8 @@ export function KIBPlatformBadge({ platform, withLabel }: { platform: Platform; 
 /** Main content card — grid variant. */
 export function KIBContentCard({ item, onPress, width }: { item: SavedItem; onPress?: () => void; width?: number | `${number}%` }) {
   return (
-    <Pressable
+    <KIBMotionPressable
+      enter
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${item.platform} ${item.content_type}`}
@@ -54,23 +63,25 @@ export function KIBContentCard({ item, onPress, width }: { item: SavedItem; onPr
     >
       <KIBThumbnail item={item} height={110} />
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-        <Text style={[type.caption as TextStyle, { color: platformColor[item.platform as Platform] }]}>{item.platform}</Text>
-        <Text style={[type.caption as TextStyle, { color: colors.textMuted }]}> • {item.content_type}</Text>
+        <KIBPlatformLogo platform={item.platform as Platform} size={13} />
+        <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginLeft: 5 }]}>• {item.content_type}</Text>
       </View>
       <Text style={[type.body as TextStyle, { color: colors.text, marginTop: 2 }]} numberOfLines={2}>
         {item.title}
       </Text>
       <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginTop: 2 }]} numberOfLines={1}>
-        {item.creator_handle ?? item.creator_name ?? 'Unknown creator'}
+        {creatorLabel(item)}{item.category ? ` • ${item.category}` : ''}
       </Text>
-    </Pressable>
+      {item.local_downloaded ? <Text style={[type.caption as TextStyle, { color: colors.accent, marginTop: 3 }]}>↓ On this device</Text> : null}
+    </KIBMotionPressable>
   );
 }
 
 /** List variant used in feeds and search results. */
 export function KIBContentRow({ item, onPress, keywords }: { item: SavedItem; onPress?: () => void; keywords?: string[] }) {
   return (
-    <Pressable
+    <KIBMotionPressable
+      enter
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${item.platform} ${item.content_type}`}
@@ -83,40 +94,45 @@ export function KIBContentRow({ item, onPress, keywords }: { item: SavedItem; on
         <Text style={[type.body as TextStyle, { color: colors.text }]} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginTop: 2 }]} numberOfLines={1}>
-          {item.platform} • {item.content_type} • {item.creator_handle ?? item.creator_name ?? 'Unknown creator'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, flex: 1 }}>
+          <KIBPlatformLogo platform={item.platform as Platform} size={12} />
+          <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginLeft: 4, flex: 1 }]} numberOfLines={1}>
+            • {item.content_type} • {creatorLabel(item)}{item.category ? ` • ${item.category}` : ''}
+          </Text>
+        </View>
         {keywords && keywords.length > 0 ? (
           <Text style={[type.caption as TextStyle, { color: colors.textSecondary, marginTop: 4 }]} numberOfLines={1}>
             {keywords.slice(0, 3).join('  ')}
           </Text>
         ) : null}
       </View>
+      <View style={{ alignItems: 'flex-end', gap: 3 }}>
+      {item.local_downloaded ? <Text style={[type.caption as TextStyle, { color: colors.accent }]}>↓</Text> : null}
       {(item.tags ?? []).length > 0 ? (
         <Text style={[type.caption as TextStyle, { color: colors.textMuted }]} numberOfLines={1}>
           {(item.tags ?? []).slice(0, 2).map((t) => `#${t}`).join(' ')}
         </Text>
       ) : null}
-    </Pressable>
+      </View>
+    </KIBMotionPressable>
   );
 }
 
 export function KIBCollectionCard({ collection, count, onPress }: { collection: Collection; count: number; onPress?: () => void }) {
-  const [from, to] = paletteFor(collection.id + collection.name);
   return (
-    <Pressable
+    <KIBMotionPressable
+      enter
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Collection ${collection.name}, ${count} items`}
-      style={[styles.collectionCard, { backgroundColor: from }]}
+      style={styles.collectionCard}
     >
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: to, opacity: 0.25 }} />
-      <Text style={{ fontSize: 24 }}>{collection.emoji}</Text>
-      <Text style={[type.body as TextStyle, { color: '#fff', fontWeight: '600', marginTop: 4 }]} numberOfLines={1}>
+      <Text style={{ fontSize: 24, color: colors.accent }}>{collection.emoji}</Text>
+      <Text style={[type.body as TextStyle, { color: colors.text, fontWeight: '600', marginTop: 4 }]} numberOfLines={1}>
         {collection.name}
       </Text>
-      <Text style={[type.caption as TextStyle, { color: 'rgba(255,255,255,0.7)' }]}>{count} items</Text>
-    </Pressable>
+      <Text style={[type.caption as TextStyle, { color: colors.textMuted }]}>{count} items</Text>
+    </KIBMotionPressable>
   );
 }
 
@@ -130,11 +146,9 @@ export function KIBCollectionRow({
   count: number;
   onPress?: () => void;
 }) {
-  const [from, to] = paletteFor(collection.id + collection.name);
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Open ${collection.name}`} style={styles.collectionRow}>
-      <View style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: from, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: to, opacity: 0.25 }} />
+      <View style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.surface3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: 22 }}>{collection.emoji}</Text>
       </View>
       <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -144,7 +158,7 @@ export function KIBCollectionRow({
           {collection.description ? ` • ${collection.description}` : ''}
         </Text>
       </View>
-      <Text style={{ color: colors.textMuted, fontSize: 18 }}>›</Text>
+      <Text style={{ color: colors.accent, fontSize: 18 }}>›</Text>
     </Pressable>
   );
 }
@@ -217,7 +231,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheetOverlay: { flex: 1, backgroundColor: 'rgba(28,23,24,0.38)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.modal,
@@ -233,7 +247,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
     marginBottom: spacing.lg,
   },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(28,23,24,0.42)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   modal: {
     backgroundColor: colors.surface,
     borderRadius: radius.modal,

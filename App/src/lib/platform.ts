@@ -29,17 +29,6 @@ export function detectContentType(url: string): ContentType {
   return 'Link';
 }
 
-export const platformEmoji: Record<Platform, string> = {
-  Instagram: '📸',
-  YouTube: '▶️',
-  TikTok: '🎵',
-  Facebook: '👥',
-  X: '𝕏',
-  Pinterest: '📌',
-  Reddit: '👽',
-  Web: '🌐',
-};
-
 export const platformColor: Record<Platform, string> = {
   Instagram: '#E1306C',
   YouTube: '#FF4444',

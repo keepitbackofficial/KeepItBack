@@ -34,12 +34,14 @@ export async function verifyLinkCode(code: string): Promise<VerifyCodeResult> {
 
   let res: Response;
   try {
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return { error: 'Sign in to KeepItBack first.' };
     res = await fetch(fnUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Supabase Edge Functions require the public anon key to route.
-        Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${session.access_token}`,
         apikey: `${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({ code: code.trim().toUpperCase() }),

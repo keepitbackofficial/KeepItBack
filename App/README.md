@@ -2,29 +2,30 @@
 
 **Save anything. Find everything.**
 
-A private, searchable library for content discovered online: Instagram
-Reels/posts, TikTok, YouTube, and any web link. Saving takes one paste;
-finding takes one search of **your own rows** — no demo data, no fake sync.
+A private, searchable library for links from Instagram, TikTok, YouTube, and
+the web. Built with **Expo SDK 58 · React Native 0.88 · React 19.3 · Expo
+Router · Supabase Auth and PostgreSQL**. The mobile app uses the Warm Editorial
+Archive design in `Ui Screens/`, with Playfair Display, Plus Jakarta Sans,
+paper surfaces, and terracotta controls.
 
-Built with **Expo SDK 58 · React Native 0.88 · React 19.3 · Expo Router ·
-Clerk (identity) · Supabase PostgreSQL (data)**. Dark-first UI
-(`#0B0B0F`, violet `#7C5CFC`), implemented from `KeepItBack_PRD_v2.md`.
-
-## What's real vs. what needs configuration
+## What's implemented
 
 | Feature | Status |
 |---|---|
-| Real sign-up / sign-in / session restore (Clerk) | ✅ implemented — needs your Clerk instance configured |
-| Save URL → Supabase, duplicate detection, honest errors | ✅ implemented |
-| Home / Library / Search / counts from real rows | ✅ implemented |
-| Notes, tags, collections CRUD (RLS-protected) | ✅ implemented |
-| Honest empty states, retryable errors, "Not configured" states | ✅ implemented |
-| Instagram DM code linking (server contract) | ✅ implemented in app + Edge Functions — needs Meta + Edge Function setup |
-| Native share-to-app (`share_extension`) | ✅ implemented for shared text/URLs on Android and iOS; requires a development/native build |
-| Device downloads | ⛔ "Download unavailable for this link" — no permitted direct media source is wired |
-| AI summaries / semantic search | ⛔ intentionally absent (no fabricated AI) |
+| Email/password sign-up and sign-in, persistent Supabase session | ✅ |
+| Email confirmation, one-time email-code sign-in, password recovery | ✅ |
+| Save links to Supabase, duplicate detection, honest errors | ✅ |
+| YouTube / TikTok previews from their oEmbed endpoints | ✅ best effort |
+| Instagram Reel/Post previews via Microlink | ✅ server proxy; availability depends on the source and free quota |
+| Home / Library / Search / counts from real rows | ✅ |
+| Notes, tags, and collections | ✅ RLS-protected |
+| Instagram DM linking, shared collection invites, privacy endpoints | ✅ app and Edge Function code; requires server setup |
+| Native share-to-app | ✅ Android and iOS development/production builds |
+| Device downloads | ✅ direct permitted media links only |
+| Opt-in first-party analytics | ✅ fixed event names only; no saved content |
+| AI summaries / semantic search | ⛔ intentionally absent |
 
-## 1. Install & run
+## 1. Install and run
 
 ```bash
 npm install
@@ -33,132 +34,124 @@ npx tsc --noEmit        # typecheck
 npx expo lint           # lint
 ```
 
-Native share receiving is not available in Expo Go. Build and install a custom
-development app after adding the share-intent plugin:
+Native share receiving requires a custom development or production build:
 
 ```bash
 npx expo run:android
 npx expo run:ios
 ```
 
-From Instagram, TikTok, YouTube, or another app, choose **Share → KeepItBack**.
-Shared links are saved to the signed-in user's library automatically; if signed
-out, sign in first and the pending link is saved afterward. Rebuild the native
-app whenever the share-intent plugin or its configuration changes.
+## 2. Configure Supabase Auth
 
-## 2. Clerk setup (identity)
-
-1. Create an app at [dashboard.clerk.com](https://dashboard.clerk.com) (or use the
-   instance referenced in `clerk.md`). Enable the sign-in methods you want —
-   the app implements **email + password with email-code verification**.
-2. Copy the **Publishable key** (`pk_test_…` / `pk_live_…`) for that app into
-   `.env` as `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`. Use a real key from the
-   dashboard, not a value copied from `.env.example`.
-3. After changing `.env`, restart Expo with `npx expo start --clear` so the
-   key is included in the JavaScript bundle. Never put a Clerk secret key in
-   the mobile app's environment or client bundle.
-4. Session persistence uses `expo-secure-store` via `@clerk/expo/token-cache`.
-5. Protected routing: `app/(tabs)/*` requires an active Clerk session;
-   signed-in users are bounced out of auth screens automatically.
-
-## 3. Supabase project + Clerk ↔ Supabase trust
-
-1. Create a project at [supabase.com](https://supabase.com). Add to `.env`:
+1. Create a Supabase project at [supabase.com](https://supabase.com).
+2. Copy the project URL and public anon/publishable key into `App/.env`:
    ```
-   EXPO_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-publishable-key>
+   EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=<public-anon-or-publishable-key>
    ```
-2. **Third-party auth:** Supabase Dashboard → *Authentication → Sign In /
-   Providers → Third-Party Auth → Add provider → Clerk*. Activate the
-   "Connect with Supabase" flow inside the Clerk dashboard (it provisions the
-   integration and yields the Clerk domain to paste into that field). This
-   makes every request carry a verified Clerk JWT where `auth.jwt()->>'sub'`
-   equals the Clerk user id. **Do not** configure the deprecated JWT
-   template; **never** share your Supabase JWT signing secret with Clerk.
-3. The client uses the v2 `accessToken` callback (`src/lib/supabase.ts`) so
-   each request fetches the *current* Clerk token — no token templates, no
-   static auth headers.
+   Never put the service-role key in the app environment.
+3. In Supabase Dashboard → **Authentication → URL Configuration**, add the app
+   callback URL `keepitback://auth/callback` to the redirect allowlist. While
+   using Expo Go, also allow the `exp://<your-dev-host>:8081/--/auth/callback`
+   URL emitted by `Linking.createURL('auth/callback')` for your current session.
+4. In **Authentication → Sign In / Providers → Email**, enable email and
+   password sign-in. Email confirmation can be enabled or disabled. If enabled,
+   the app accepts both the confirmation link and a numeric code. To support
+   code entry, set the email confirmation template to include `{{ .Token }}`;
+   the default confirmation link is also handled by the app callback.
+5. Restart Expo after editing `.env`:
+   ```bash
+   npx expo start --clear
+   ```
 
-## 4. Migration (run it yourself — the agent did not execute it)
+Email/password, email-code sign-in, email verification, and password recovery
+all use Supabase Auth. “Other ways to log in” sends a one-time code by email;
+social providers are not shown because none are configured in this app.
+Supabase Auth sessions persist in AsyncStorage on native and browser storage on
+web. Protected routes wait for session restoration before redirecting.
 
-Open Supabase Dashboard → **SQL Editor**, paste the entire contents of
-[supabase/migrations/20261026090000_keepitback_baseline.sql](supabase/migrations/20261026090000_keepitback_baseline.sql),
-and **Run**. It creates `profiles`, `saved_items` (+ FTS tsvector),
-`tags`/`item_tags`, `collections`/`collection_items`,
-`connected_accounts`, and server-only `account_link_codes` /
-`webhook_events` (RLS enabled, **no policies** → only the service role can
-touch them). All ownership policies compare the **text** Clerk subject:
-`user_id = (select auth.jwt() ->> 'sub')` — never `auth.uid()` (which casts
-to uuid). No seed rows exist.
+## 3. Supabase database
 
-## 5. Edge Functions (Instagram DM linking)
+Run the SQL migrations manually in Supabase Dashboard → **SQL Editor**, in
+timestamp order. They have not been applied by this repository workflow.
 
-Deploy once Supabase is configured:
+- [Baseline schema](supabase/migrations/20261026090000_keepitback_baseline.sql)
+  creates profiles, saved items, tags, collections, connected accounts, and
+  their row-level security policies.
+- [Mobile features](supabase/migrations/20261027120000_mobile_features.sql)
+  adds categories, shared collections, notification preferences, analytics,
+  and account cleanup.
+
+The schema stores user IDs as text and compares them with the authenticated
+JWT `sub`, so Supabase Auth UUIDs work without a schema change. Existing Clerk
+accounts are not imported: users need Supabase Auth accounts, and old rows
+whose `user_id` contains a Clerk ID will not appear under a new Supabase user.
+Export any existing data before retiring those accounts if it needs to be
+preserved.
+
+## 4. Edge Functions
+
+Deploy functions after the database migrations:
 
 ```bash
-supabase functions deploy link-code
-supabase functions deploy instagram-webhook --no-verify-jwt=false   # keep JWT verification ON for real Meta traffic
-# Actually for Meta webhooks, deploy with --no-verify-jwt so Meta's signed
-# POSTs (not Supabase JWTs) are accepted, then verify signatures in-code:
-supabase functions deploy instagram-webhook --no-verify-jwt
+npx supabase functions deploy link-code
+npx supabase functions deploy link-metadata
+npx supabase functions deploy instagram-webhook --no-verify-jwt
+npx supabase functions deploy collection-invites
+npx supabase functions deploy account-privacy
 ```
 
-Set secrets (server-side only, never in `.env`/app bundle):
+Authenticated app endpoints verify the Supabase access token with Supabase
+Auth. The Meta webhook uses its own signature validation.
+
+Set server-only secrets with the CLI; never add these to `.env` or the app
+bundle:
 
 ```bash
-supabase secrets set LINK_CODE_SECRET=$(openssl rand -hex 32)
-supabase secrets set CLERK_JWKS_URL=https://<app>.clerk.accounts.dev/.well-known/jwks.json
-supabase secrets set META_APP_SECRET=<your-meta-app-secret>
-supabase secrets set META_VERIFY_TOKEN=<random-string-you-choose>
+npx supabase secrets set LINK_CODE_SECRET=<random-32-byte-secret>
+npx supabase secrets set META_APP_SECRET=<your-meta-app-secret>
+npx supabase secrets set META_VERIFY_TOKEN=<random-string-you-choose>
 # optional, for confirmation replies in the DM thread:
-supabase secrets set META_TOKEN=<ig-graph-token>
-supabase secrets set META_IG_USER_ID=<ig-professional-account-id>
+npx supabase secrets set META_TOKEN=<ig-graph-token>
+npx supabase secrets set META_IG_USER_ID=<ig-professional-account-id>
 ```
 
-Because secrets are absent by default, the functions return
-`503 {code:'not_configured'}` and the app shows a real "Not configured"
-state — no fake codes, no fake connected badge.
+Instagram previews use Microlink's free endpoint for public Instagram post and
+Reel links. Preview data depends on what the source exposes; an unavailable
+cover or title does not prevent saving the URL. Microlink's free quota can
+change, so check its [current link preview documentation](https://microlink.io/link-preview).
+
+`collection-invites` creates hashed, one-time 16-character invite codes that
+expire after seven days. `account-privacy` verifies the signed-in Supabase user,
+removes KeepItBack records, and deletes the Supabase Auth user with a
+server-only service-role key.
 
 Webhook wiring: Meta App → Instagram Messaging webhooks → callback URL
-`https://<ref>.supabase.co/functions/v1/instagram-webhook`, verify token as
-above, subscribe to **messages**. The function verifies
-`X-Hub-Signature-256` (timing-safe), dedups by Meta `message.mid` in
-`webhook_events`, resolves the sender's Instagram-scoped id (IGSID, never a
-username) to a `connected_accounts` row, and inserts the shared URL with
-`source='instagram_dm'` — only through the service role.
+`https://<project-ref>.supabase.co/functions/v1/instagram-webhook`. The
+function verifies `X-Hub-Signature-256`, deduplicates messages, resolves the
+sender's Instagram-scoped id to a connected account, and inserts the link with
+`source='instagram_dm'` using the service role.
 
-## 6. Verification checklist
+## Verification checklist
 
-- [ ] Sign-up works; email verification code arrives (if enabled on the instance)
-- [ ] Session survives app restart (secure storage)
-- [ ] First launch shows an **empty** library — no demo items anywhere
-- [ ] Pasting a valid URL inserts a row in `saved_items`; invalid URL is rejected
-- [ ] Saving the same link again shows the original item (duplicate path)
-- [ ] Search matches titles/notes/creators/URLs/tags of **your** rows only
-- [ ] Notes, tags, collections persist after restart
-- [ ] Deleting an item is confirmed and reflected everywhere
-- [ ] User B never sees User A's data (RLS + encrypted at rest)
-- [ ] With Edge Function secrets unset, Connected Accounts says "Not configured"
+- [ ] Create an account with confirmation enabled and disabled
+- [ ] Sign in with password and email code; restore session after restart
+- [ ] Reset password from a confirmation link
+- [ ] Sign out from Profile and Settings
+- [ ] Save duplicate and new URLs; metadata and access remain RLS-scoped
+- [ ] Export account data and delete a test account
+- [ ] Shared collection invite roles enforce owner/editor/viewer behavior
+- [ ] User B cannot read User A's rows
 
 ## Architecture
 
 ```
-app/                     Expo Router (auth)/(tabs)/content/collections/settings
-src/lib/supabase.ts      Real client; Clerk token via accessToken callback
-src/lib/platform.ts      URL validation, platform/content detection, canonicalization
-src/api/                 profile · items · collections · accounts (all RLS-scoped)
-src/store/useLibrary.ts  Display cache fed only by real writes/reads
-supabase/migrations/     Baseline SQL (run manually in the SQL Editor)
-supabase/functions/      link-code (verify+link) · instagram-webhook (ingest)
+app/                     Expo Router auth, tabs, content, collections, settings
+src/auth/AuthProvider.tsx Supabase Auth session context and protected routing
+src/lib/supabase.ts      Supabase Auth and database client
+src/lib/localStore.ts    Device-only downloads and local sync metadata
+src/api/                 Profile, items, collections, accounts, privacy
+src/store/useLibrary.ts  UI state fed by Supabase reads and writes
+supabase/migrations/     Schema SQL (run manually)
+supabase/functions/      Supabase token verification and server-only functions
 ```
-
-## Honest limitations
-
-- **Native share input:** URL/text sharing is supported; sharing the actual
-   video file is not. Social platforms may share a URL or text rather than media.
-- **No device downloads:** platform links don't expose permitted direct file
-  sources to this app; the UI states that instead of simulating progress.
-- **No AI metadata:** search is real PostgreSQL substring matching on rows
-  you saved; nothing "semantic" is claimed.
-- **Instagram linking ≠ import:** DM linking only affects content you
-  deliberately send to KeepItBack's Instagram in the future.

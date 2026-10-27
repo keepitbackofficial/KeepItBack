@@ -1,67 +1,98 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KIBText as Text } from '../../src/components/KIBText';
+import * as Network from 'expo-network';
+import { File } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { KIBContentRow, KIBPlatformBadge, KIBBottomSheet } from '../../src/components/KIBContent';
+import { KIBPlatformBadge, KIBBottomSheet } from '../../src/components/KIBContent';
 import { KIBButton, KIBTag } from '../../src/components/KIBPrimitives';
-import { describeDbError, getSupabase, isSupabaseConfigured } from '../../src/lib/supabase';
-import { markOpened } from '../../src/api/items';
-import { fetchConnectedAccounts } from '../../src/api/accounts';
+import { describeDbError, getSupabase } from '../../src/lib/supabase';
+import { createCategory, deleteItem, fetchItem, markOpened, setItemTags, updateItem } from '../../src/api/items';
+import { fetchLinkMetadata } from '../../src/api/linkMetadata';
+import { fetchProfile } from '../../src/api/profile';
+import { logProductEvent } from '../../src/api/analytics';
+import { deletePendingSave, getCachedItems, getDownloads, getPendingLocalItems, queueItemDelete, queueItemUpdate, removeCachedItem, updateCachedItem, updatePendingSave } from '../../src/lib/localStore';
+import { deleteDownloadedMedia, directMediaReason, downloadSavedMedia } from '../../src/lib/downloads';
+import { useAuth } from '../../src/auth/AuthProvider';
+import { useLibrary } from '../../src/store/useLibrary';
 import { SavedItem } from '../../src/types';
 import { colors, radius, spacing, type } from '../../src/theme';
 
 /**
  * SCREEN — CONTENT DETAILS. Shows only fields that actually exist in the
  * user's row. Opening the original uses Linking; the open counter is a
- * real database increment (best effort). Downloads: KeepItBack saves
- * references; there is no permitted direct-download source for these
- * platform links, so the UI never pretends otherwise.
+ * real database increment (best effort). Downloads are limited to direct
+ * HTTPS media links and require an explicit permission confirmation.
  */
 export default function ContentDetails() {
   const { id, duplicate } = useLocalSearchParams<{ id: string; duplicate?: string }>();
   const router = useRouter();
+  const { userId } = useAuth();
   const [item, setItem] = useState<SavedItem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewBusy, setPreviewBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [note, setNote] = useState('');
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagText, setTagText] = useState('');
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [downloaded, setDownloaded] = useState(false);
+  const [downloadUri, setDownloadUri] = useState<string | null>(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
   const openedOnce = useRef(false);
 
   useEffect(() => {
     void (async () => {
       if (!id) return;
       try {
-        const db = getSupabase();
-        const { data, error } = await db.from('saved_items').select('*, item_tags(tag_id(tags(name)))').eq('id', id).maybeSingle();
-        if (error) {
-          setLoadError(describeDbError(error));
+        let mapped: SavedItem | null = null;
+        if (id.startsWith('local:') && userId) {
+          const [pending, cached] = await Promise.all([getPendingLocalItems(userId), getCachedItems(userId)]);
+          mapped = [...pending, ...cached].find((saved) => saved.id === id) ?? null;
+        } else {
+          let cached: SavedItem | undefined;
+          if (userId) cached = (await getCachedItems(userId)).find((saved) => saved.id === id && (saved.sync_state === 'pending' || saved.sync_state === 'error'));
+          if (cached) mapped = cached;
+          else {
+            const result = await fetchItem(id);
+            if ('data' in result) mapped = result.data;
+            else if (userId) mapped = (await getCachedItems(userId)).find((saved) => saved.id === id) ?? null;
+          }
+        }
+        if (!mapped) {
+          setLoadError('This item is not available in the current library or offline cache.');
           return;
         }
-        if (!data) {
-          setLoadError('This item no longer exists in your library.');
-          return;
-        }
-        const mapped: SavedItem = {
-          ...(data as any),
-          tags: ((data as any).item_tags ?? []).map((l: any) => l?.tag_id?.name).filter(Boolean),
-        };
         setItem(mapped);
         setNote(mapped.note ?? '');
         setTitle(mapped.title);
+        setCategory(mapped.category ?? '');
         setTagText((mapped.tags ?? []).join(', '));
-        if (!openedOnce.current) {
+        if (userId) {
+          try {
+            const savedId = mapped.remote_id ?? mapped.id;
+            const local = (await getDownloads(userId)).find((saved) => saved.item_id === savedId || saved.item_id === mapped?.id);
+            const exists = Boolean(local && new File(local.local_uri).exists);
+            if (local && !exists) await deleteDownloadedMedia(userId, local.item_id);
+            setDownloaded(exists);
+            setDownloadUri(exists ? local?.local_uri ?? null : null);
+          } catch { setDownloaded(false); setDownloadUri(null); }
+        }
+        const openedId = mapped.remote_id ?? mapped.id;
+        if (!openedId.startsWith('local:') && !openedOnce.current) {
           openedOnce.current = true;
-          void markOpened(id);
+          void markOpened(openedId);
+          if (userId) void logProductEvent(userId, 'content_opened');
         }
       } catch (e: any) {
         setLoadError(describeDbError(e));
       }
     })();
-  }, [id]);
+  }, [id, userId]);
 
   // Only collections the item currently belongs to get a checkmark.
   useEffect(() => {
@@ -69,10 +100,11 @@ export default function ContentDetails() {
       if (!id || !collectionsOpen) return;
       try {
         const db = getSupabase();
+        const itemId = item?.remote_id ?? id;
         const res = await db
           .from('collections')
           .select('id, name, emoji, collection_items!inner(item_id)')
-          .eq('collection_items.item_id', id);
+          .eq('collection_items.item_id', itemId);
         if (!res.error) {
           const rows = (res.data as any[]) ?? [];
           setMemberIds(rows.filter((r) => r.collection_items?.length).map((r) => r.id));
@@ -81,41 +113,44 @@ export default function ContentDetails() {
         // Collections sheet still shows with empty selection.
       }
     })();
-  }, [id, collectionsOpen]);
-
-  const reload = async (): Promise<SavedItem | null> => {
-    if (!id) return null;
-    try {
-      const db = getSupabase();
-      const { data } = await db.from('saved_items').select('*, item_tags(tag_id(tags(name)))').eq('id', id).maybeSingle();
-      if (data) {
-        const mapped: SavedItem = {
-          ...(data as any),
-          tags: ((data as any).item_tags ?? []).map((l: any) => l?.tag_id?.name).filter(Boolean),
-        };
-        setItem(mapped);
-        return mapped;
-      }
-    } catch {
-      // ignore — UI keeps last good state
-    }
-    return item;
-  };
+  }, [id, item?.remote_id, collectionsOpen]);
 
   const saveEdits = async () => {
     if (!id || busy) return;
+    if (!item || !userId) return;
     setBusy(true);
     try {
-      const db = getSupabase();
-      const { error } = await db
-        .from('saved_items')
-        .update({ title: title.trim() || undefined, note: note.trim() || null })
-        .eq('id', id);
-      if (error) {
-        Alert.alert('Save failed', describeDbError(error));
-        return;
+      const nextCategory = category.trim() || null;
+      const network = await Network.getNetworkStateAsync().catch(() => null);
+      if (nextCategory && !id.startsWith('local:') && network?.isConnected !== false) {
+        const categoryResult = await createCategory(nextCategory);
+        if ('error' in categoryResult) {
+          Alert.alert('Category could not be saved', categoryResult.error);
+          return;
+        }
       }
-      await reload();
+      const patch = { title: title.trim() || item.title, note: note.trim() || null, category: nextCategory };
+    if (id.startsWith('local:') && !item.remote_id) {
+        const ok = await updatePendingSave(userId, id, patch);
+        if (!ok) { Alert.alert('Save failed', 'This offline save is no longer in the sync queue.'); return; }
+        const updated = { ...item, ...patch, sync_state: 'pending' as const };
+        setItem(updated);
+        await updateCachedItem(userId, updated);
+      } else {
+        const remoteId = item.remote_id ?? id;
+        const result = await updateItem(remoteId, patch);
+        if ('error' in result) {
+          const network = await Network.getNetworkStateAsync().catch(() => null);
+          if (!network || (network.isConnected !== false && network.isInternetReachable !== false)) { Alert.alert('Save failed', result.error); return; }
+          await queueItemUpdate(userId, item, patch);
+          setItem({ ...item, ...patch, sync_state: 'pending' });
+        } else {
+          const updated = id.startsWith('local:') ? { ...result.data, id, remote_id: remoteId } : result.data;
+          setItem(updated);
+          await updateCachedItem(userId, updated).catch(() => undefined);
+          if (id.startsWith('local:')) await updateCachedItem(userId, result.data).catch(() => undefined);
+        }
+      }
       setEditOpen(false);
     } finally {
       setBusy(false);
@@ -124,77 +159,93 @@ export default function ContentDetails() {
 
   const saveTags = async () => {
     if (!id || busy) return;
+    if (!item || !userId) return;
     setBusy(true);
     try {
-      const supabase = getSupabase();
       const names = [...new Set(tagText.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
-      if (!names.length) {
-        // remove all tags from the item
-        const cur = await supabase.from('item_tags').select('tag_id').eq('item_id', id);
-        const ids = (cur.data ?? []).map((r: any) => r.tag_id);
-        if (ids.length) {
-          const del = await supabase.from('item_tags').delete().eq('item_id', id).in('tag_id', ids);
-          if (del.error) {
-            Alert.alert('Save failed', describeDbError(del.error));
-            return;
-          }
-        }
+      if (names.length) void logProductEvent(userId, 'tag_added');
+      if (id.startsWith('local:') && !item.remote_id) {
+        const ok = await updatePendingSave(userId, id, { tags: names });
+        if (!ok) { Alert.alert('Save failed', 'This offline save is no longer in the sync queue.'); return; }
+        const updated = { ...item, tags: names, sync_state: 'pending' as const };
+        setItem(updated);
+        await updateCachedItem(userId, updated);
       } else {
-        const { data: upserted, error: upErr } = await supabase.from('tags').upsert(names.map((name) => ({ name })), { onConflict: 'name' }).select('id, name');
-        if (upErr) {
-          Alert.alert('Save failed', describeDbError(upErr));
-          return;
+        const remoteId = item.remote_id ?? id;
+        const result = await setItemTags(remoteId, names);
+        if ('error' in result) {
+          const network = await Network.getNetworkStateAsync().catch(() => null);
+          if (!network || (network.isConnected !== false && network.isInternetReachable !== false)) { Alert.alert('Save failed', result.error); return; }
+          await queueItemUpdate(userId, item, { tags: names });
         }
-        const byName = new Map(((upserted ?? []) as any[]).map((t) => [t.name, t.id]));
-        const missing = names.filter((n) => !byName.has(n));
-        if (missing.length) {
-          const { data: found, error: fErr } = await supabase.from('tags').select('id, name').in('name', missing);
-          if (fErr) {
-            Alert.alert('Save failed', describeDbError(fErr));
-            return;
-          }
-          (found ?? []).forEach((t: any) => byName.set(t.name, t.id));
-        }
-        const newIds = names.map((n) => byName.get(n)).filter(Boolean);
-        const cur = await supabase.from('item_tags').select('tag_id').eq('item_id', id);
-        const existing = (cur.data ?? []).map((r: any) => r.tag_id);
-        const toRemove = existing.filter((t: string) => !newIds.includes(t));
-        const toAdd = (newIds as string[]).filter((t: string) => !existing.includes(t));
-        if (toRemove.length) {
-          const del = await supabase.from('item_tags').delete().eq('item_id', id).in('tag_id', toRemove);
-          if (del.error) {
-            Alert.alert('Save failed', describeDbError(del.error));
-            return;
-          }
-        }
-        if (toAdd.length) {
-          const ins = await supabase.from('item_tags').insert(toAdd.map((tag_id) => ({ item_id: id, tag_id })));
-          if (ins.error) {
-            Alert.alert('Save failed', describeDbError(ins.error));
-            return;
-          }
-        }
+        const updated = { ...item, tags: names, sync_state: result && 'error' in result ? 'pending' as const : 'synced' as const };
+        setItem(updated);
+        await updateCachedItem(userId, updated).catch(() => undefined);
+        if (id.startsWith('local:') && item.remote_id) await updateCachedItem(userId, { ...updated, id: item.remote_id, remote_id: undefined }).catch(() => undefined);
       }
-      await supabase.from('item_tags').select().eq('item_id', id); // light consistency ping
-      await reload();
       setTagsOpen(false);
     } finally {
       setBusy(false);
     }
   };
 
+  const retryInstagramPreview = async () => {
+    if (!item || !userId || previewBusy) return;
+    const remoteId = item.remote_id ?? item.id;
+    if (remoteId.startsWith('local:')) return;
+    setPreviewBusy(true);
+    try {
+      const metadata = await fetchLinkMetadata(item.original_url, { force: true });
+      if (!metadata) {
+        Alert.alert('Preview unavailable', 'The preview provider did not return public metadata for this link. Try again later.');
+        return;
+      }
+      const patch: {
+        title?: string;
+        description?: string | null;
+        thumbnail_url?: string | null;
+        creator_name?: string | null;
+        creator_handle?: string | null;
+      } = {};
+      if (metadata.title && item.title === `${item.platform} ${item.content_type}`) patch.title = metadata.title;
+      if (metadata.description && !item.description) patch.description = metadata.description;
+      if (metadata.thumbnail_url && !item.thumbnail_url) patch.thumbnail_url = metadata.thumbnail_url;
+      if (metadata.creator_name && !item.creator_name) patch.creator_name = metadata.creator_name;
+      if (metadata.creator_handle && !item.creator_handle) patch.creator_handle = metadata.creator_handle;
+      if (!Object.keys(patch).length) {
+        Alert.alert('Preview up to date', 'There are no additional preview details to save.');
+        return;
+      }
+      const result = await updateItem(remoteId, patch);
+      if ('error' in result) {
+        Alert.alert('Preview could not be saved', result.error);
+        return;
+      }
+      const updated = item.id.startsWith('local:') ? { ...result.data, id: item.id, remote_id: remoteId } : result.data;
+      setItem(updated);
+      await updateCachedItem(userId, result.data).catch(() => undefined);
+      if (item.id.startsWith('local:')) await updateCachedItem(userId, updated).catch(() => undefined);
+      void useLibrary.getState().loadItems({ force: true });
+    } catch {
+      Alert.alert('Preview unavailable', 'Could not fetch a preview right now. Check your connection and try again.');
+    } finally {
+      setPreviewBusy(false);
+    }
+  };
+
   const toggleCollection = async (collectionId: string) => {
     if (!id) return;
+    const itemId = item?.remote_id ?? id;
     if (!memberIds.includes(collectionId)) {
       setMemberIds((m) => [...m, collectionId]);
-      const res = await getSupabase().from('collection_items').insert({ collection_id: collectionId, item_id: id });
+      const res = await getSupabase().from('collection_items').insert({ collection_id: collectionId, item_id: itemId });
       if (res.error) {
         setMemberIds((m) => m.filter((x) => x !== collectionId));
         Alert.alert('Save failed', describeDbError(res.error));
       }
     } else {
       setMemberIds((m) => m.filter((x) => x !== collectionId));
-      const res = await getSupabase().from('collection_items').delete().eq('collection_id', collectionId).eq('item_id', id);
+      const res = await getSupabase().from('collection_items').delete().eq('collection_id', collectionId).eq('item_id', itemId);
       if (res.error) {
         setMemberIds((m) => [...m, collectionId]);
         Alert.alert('Save failed', describeDbError(res.error));
@@ -204,24 +255,80 @@ export default function ContentDetails() {
 
   const confirmDelete = () => {
     if (!id) return;
-    Alert.alert('Delete item', 'Remove this saved link permanently? Collections membership disappears too.', [
+    Alert.alert('Delete item', 'Remove this saved link from your library? Any device download for it will also be removed.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
           try {
-            const res = await getSupabase().from('saved_items').delete().eq('id', id);
-            if (res.error) {
-              Alert.alert('Delete failed', describeDbError(res.error));
-              return;
+            const remoteId = item?.remote_id ?? id;
+            if (userId && id.startsWith('local:') && !item?.remote_id) {
+              await deletePendingSave(userId, id);
+            } else {
+              const result = await deleteItem(remoteId);
+              if ('error' in result) {
+                const network = await Network.getNetworkStateAsync().catch(() => null);
+                if (!userId || !network || (network.isConnected !== false && network.isInternetReachable !== false) || !item) {
+                  Alert.alert('Delete failed', result.error);
+                  return;
+                }
+                await queueItemDelete(userId, item);
+              }
             }
+            if (userId) await deleteDownloadedMedia(userId, remoteId).catch(() => undefined);
+            if (userId) await removeCachedItem(userId, id).catch(() => undefined);
+            if (userId && item?.remote_id) await removeCachedItem(userId, item.remote_id).catch(() => undefined);
+            useLibrary.getState().removeLocalItem(id);
+            if (userId) void logProductEvent(userId, 'item_deleted');
             router.back();
           } catch (e: any) {
             Alert.alert('Delete failed', describeDbError(e));
           }
         },
       },
+    ]);
+  };
+
+  const beginDownload = () => {
+    if (!item || !userId || downloadBusy) return;
+    if (downloaded) {
+      if (!downloadUri) { Alert.alert('Could not open download', 'The saved file is unavailable on this device.'); return; }
+      void new File(downloadUri).preview({ title: item.title }).catch(() => Alert.alert('Could not open download', 'The saved file is unavailable on this device.'));
+      return;
+    }
+    const reason = directMediaReason(item);
+    if (reason) { Alert.alert('Download unavailable', reason); return; }
+    Alert.alert('Download direct media?', 'Confirm that you have permission to save this direct media file to your device. Only the direct file is downloaded; social platform links stay as references.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'I have permission', onPress: async () => {
+        setDownloadBusy(true);
+        if (userId) void logProductEvent(userId, 'download_started');
+        const result = await downloadSavedMedia(item, userId);
+        setDownloadBusy(false);
+        if (result.error) { Alert.alert('Download unavailable', result.error); return; }
+        setDownloaded(true);
+        setDownloadUri(result.data?.local_uri ?? null);
+        if (userId) {
+          void logProductEvent(userId, 'download_completed');
+          const profile = await fetchProfile(userId);
+          if (profile.data?.notification_preferences?.download_complete) {
+            try {
+              const Notifications = await import('expo-notifications');
+              let permission = await Notifications.getPermissionsAsync();
+              if (!permission.granted) permission = await Notifications.requestPermissionsAsync();
+              if (permission.granted) {
+                await Notifications.scheduleNotificationAsync({
+                  content: { title: 'Download ready', body: `${item.title} is saved on this device.` },
+                  trigger: null,
+                });
+              }
+            } catch {
+              Alert.alert('Download complete', 'The media is saved on this device, but notifications are unavailable in this app build.');
+            }
+          }
+        }
+      } },
     ]);
   };
 
@@ -252,10 +359,15 @@ export default function ContentDetails() {
 
       <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xl }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <KIBPlatformBadge platform={item.platform} withLabel />
+          <KIBPlatformBadge platform={item.platform} />
           <Text style={{ color: colors.textMuted, fontSize: 12 }}>{item.content_type}</Text>
         </View>
         <Text style={[type.h2 as any, { color: colors.text, marginTop: spacing.md }]}>{item.title}</Text>
+        {item.thumbnail_url ? (
+          <Image source={{ uri: item.thumbnail_url }} resizeMode="cover" style={{ width: '100%', height: 190, borderRadius: radius.md, marginTop: spacing.md, backgroundColor: colors.surface3 }} />
+        ) : null}
+        {item.category ? <Text style={{ color: colors.accent, marginTop: 4 }}>{item.category}</Text> : null}
+        {item.sync_state === 'pending' || item.sync_state === 'error' ? <Text style={{ color: colors.warning, marginTop: 4, fontSize: 12 }}>{item.sync_state === 'error' ? 'Sync needs a retry' : 'Waiting to sync from this device'}</Text> : null}
         {item.creator_handle || item.creator_name ? (
           <Text style={{ color: colors.textMuted, marginTop: 4 }}>{item.creator_handle ?? item.creator_name}</Text>
         ) : null}
@@ -299,11 +411,15 @@ export default function ContentDetails() {
               await Linking.openURL(item.original_url);
             }}
           />
+          {item.platform === 'Instagram' && (!item.thumbnail_url || (!item.creator_handle && !item.creator_name) || item.title === `${item.platform} ${item.content_type}`) && (!item.id.startsWith('local:') || Boolean(item.remote_id)) ? (
+            <KIBButton label={previewBusy ? 'Fetching preview…' : 'Retry Instagram preview'} variant="secondary" disabled={previewBusy} onPress={() => void retryInstagramPreview()} />
+          ) : null}
           <View style={styles.actionRow}>
             <KIBButton label="Edit" variant="secondary" style={{ flex: 1 }} onPress={() => setEditOpen(true)} />
             <KIBButton label="Tags" variant="secondary" style={{ flex: 1 }} onPress={() => setTagsOpen(true)} />
-            <KIBButton label="Collections" variant="secondary" style={{ flex: 1 }} onPress={() => setCollectionsOpen(true)} />
+            <KIBButton label="Collections" variant="secondary" style={{ flex: 1 }} disabled={item.id.startsWith('local:') && !item.remote_id} onPress={() => setCollectionsOpen(true)} />
           </View>
+          <KIBButton label={downloadBusy ? 'Downloading…' : downloaded ? 'Open device download' : directMediaReason(item) ? 'Download unavailable' : 'Download direct media'} variant="secondary" disabled={downloadBusy || (!downloaded && Boolean(directMediaReason(item)))} onPress={beginDownload} />
           <KIBButton label="Delete saved item" variant="danger" onPress={confirmDelete} />
           <KIBButton label="Back to library" variant="ghost" onPress={() => router.back()} />
         </View>
@@ -311,7 +427,7 @@ export default function ContentDetails() {
 
       <View style={styles.downloadNote}>
         <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-          KeepItBack stores a reference to this link. Downloading media to this device is only available for links with a permitted direct file source — for most platform links that means download unavailable, and no partial or full media fetch is attempted.
+          Social links remain saved references and cannot be downloaded here. Direct media links are checked before download, and require you to confirm you have permission to keep a device copy.
         </Text>
       </View>
 
@@ -319,6 +435,8 @@ export default function ContentDetails() {
         <View style={{ gap: spacing.md }}>
           <Text style={{ color: colors.textMuted, fontSize: 13 }}>Title</Text>
           <TextInput value={title} onChangeText={setTitle} accessibilityLabel="Title" style={styles.textInput} />
+          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Category</Text>
+          <TextInput value={category} onChangeText={setCategory} accessibilityLabel="Category" placeholder="Add a category" placeholderTextColor={colors.textMuted} style={styles.textInput} />
           <Text style={{ color: colors.textMuted, fontSize: 13 }}>Note</Text>
           <TextInput
             value={note}

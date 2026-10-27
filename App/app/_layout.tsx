@@ -1,61 +1,67 @@
-import { ClerkProvider , useAuth } from '@clerk/expo';
-import { tokenCache } from '@clerk/expo/token-cache';
 import { Slot } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { setTokenSource } from '../src/lib/clerkToken';
+import { ActivityIndicator, View } from 'react-native';
+import { useFonts } from 'expo-font';
+import {
+  PlayfairDisplay_500Medium,
+  PlayfairDisplay_600SemiBold,
+} from '@expo-google-fonts/playfair-display';
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
+import { setActiveUser } from '../src/lib/authState';
 import { upsertProfile } from '../src/api/profile';
 import { colors } from '../src/theme';
 import { ShareIntentProvider } from 'expo-share-intent';
-
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-
-if (!publishableKey) {
-  throw new Error(
-    'Missing Clerk publishable key. Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY to .env, then restart Expo with a cleared cache.'
-  );
-}
-
-function decodeJwtPayload(jwt: string): any | null {
-  try {
-    const [, payload] = jwt.split('.');
-    const b64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, '=')));
-  } catch {
-    return null;
-  }
-}
+import * as Network from 'expo-network';
+import { useLibrary } from '../src/store/useLibrary';
+import { recoverSyncingOperations } from '../src/lib/localStore';
 
 /**
- * Registers Clerk's token getter into the Supabase client and upserts the
+ * Keeps the current Supabase user available to data modules and upserts the
  * application profile once a real session exists. Idempotent.
  */
 function AuthBridge() {
-  const { isSignedIn, getToken, userId, isLoaded } = useAuth();
+  const { isSignedIn, userId, isLoaded, user } = useAuth();
 
   useEffect(() => {
-    setTokenSource(() => getToken());
-  }, [getToken]);
+    setActiveUser(user ?? null);
+  }, [user]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !userId) return;
+    let active = true;
+    const syncIfOnline = async () => {
+      const state = await Network.getNetworkStateAsync().catch(() => null);
+      if (active && state?.isConnected === true && state.isInternetReachable !== false) {
+        await useLibrary.getState().loadItems();
+      }
+    };
+    void (async () => {
+      await recoverSyncingOperations(userId).catch(() => undefined);
+      if (active) await syncIfOnline();
+    })();
+    const subscription = Network.addNetworkStateListener((state) => {
+      if (state.isConnected === true && state.isInternetReachable !== false) void syncIfOnline();
+    });
+    return () => { active = false; subscription.remove(); };
+  }, [isLoaded, isSignedIn, userId]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !userId) return;
     void (async () => {
-      let name: string | undefined;
-      let email: string | undefined;
-      try {
-        const token = await getToken();
-        const claims = token ? decodeJwtPayload(token) : null;
-        if (claims) {
-          name = claims.name || claims.given_name || claims.username;
-          email = claims.email;
-        }
-      } catch {
-        // Profile upsert below still proceeds with the user id alone.
-      }
+      const name = typeof user?.user_metadata?.full_name === 'string'
+        ? user.user_metadata.full_name
+        : typeof user?.user_metadata?.name === 'string' ? user.user_metadata.name : undefined;
+      const email = user?.email ?? undefined;
       await upsertProfile({ userId, name, email });
     })();
-  }, [isLoaded, isSignedIn, userId]);
+  }, [isLoaded, isSignedIn, user, userId]);
 
   return null;
 }
@@ -63,13 +69,37 @@ function AuthBridge() {
 export default function RootLayout() {
   return (
     <ShareIntentProvider>
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <AuthBridge />
-          <Slot />
-        </SafeAreaProvider>
-      </ClerkProvider>
+      <AuthProvider>
+        <RootContent />
+      </AuthProvider>
     </ShareIntentProvider>
+  );
+}
+
+function RootContent() {
+  const [fontsLoaded, fontError] = useFonts({
+    KIBDisplay: PlayfairDisplay_500Medium,
+    KIBDisplayStrong: PlayfairDisplay_600SemiBold,
+    KIBBody: PlusJakartaSans_400Regular,
+    KIBBodyMedium: PlusJakartaSans_600SemiBold,
+    KIBBodyStrong: PlusJakartaSans_700Bold,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      <AuthBridge />
+      <Slot />
+    </SafeAreaProvider>
   );
 }

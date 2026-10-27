@@ -1,5 +1,8 @@
 # KeepItBack — Exact UI Screen Specification
 
+> **Authentication update (2026-10-28):** Auth screens use Supabase Auth. Any
+> Clerk references below describe the original design brief and are superseded.
+
 **Version:** 1.0  
 **Platform:** React Native — Android + iOS  
 **Design Direction:** Premium, modern, dark-first, content-focused  

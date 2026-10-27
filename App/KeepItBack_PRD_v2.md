@@ -1,5 +1,9 @@
 # KeepItBack --- Production Implementation PRD v2
 
+> **Authentication update (2026-10-28):** Supabase Auth is now the app's
+> identity provider and supersedes the Clerk-specific requirements in this
+> earlier brief. The mobile client and Edge Functions must use Supabase Auth.
+
 **Purpose:** Implement the real KeepItBack application in the existing
 repository. This is an implementation brief, not a request for mockups.
 

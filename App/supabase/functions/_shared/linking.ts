@@ -144,11 +144,11 @@ export type VerifyOutcome =
 /**
  * Verify a submitted code: HMAC match against open codes, expiry check,
  * single use, per-user attempt rate limiting, then link the Instagram
- * sender id to the verified Clerk user id (sub).
+ * sender id to the verified Supabase user id.
  */
 export async function verifyAndLink(
   rawCode: string,
-  clerkUserId: string,
+  userId: string,
 ): Promise<VerifyOutcome> {
   const secret = requireEnv('LINK_CODE_SECRET');
   if (!secret) return { kind: 'server_config' };
@@ -199,7 +199,7 @@ export async function verifyAndLink(
   const up = await dbInsert(
     'connected_accounts',
     {
-      user_id: clerkUserId,
+      user_id: userId,
       provider: LINK_PROVIDER,
       provider_account_id: row.provider_account_id,
       linked_at: now,

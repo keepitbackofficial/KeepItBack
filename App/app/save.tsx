@@ -1,12 +1,18 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { KIBText as Text } from '../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
-import { useAuth } from '@clerk/expo';
+import { useAuth } from '../src/auth/AuthProvider';
 import { KIBButton } from '../src/components/KIBPrimitives';
+import { KIBPlatformLogo } from '../src/components/KIBPlatformLogo';
 import { saveUrl } from '../src/api/items';
-import { detectContentType, detectPlatform, isValidUrl, platformEmoji } from '../src/lib/platform';
+import { fetchLinkMetadata } from '../src/api/linkMetadata';
+import type { LinkMetadata } from '../src/api/linkMetadata';
+import { logProductEvent } from '../src/api/analytics';
+import { useLibrary } from '../src/store/useLibrary';
+import { detectContentType, detectPlatform, isValidUrl } from '../src/lib/platform';
 import { colors, radius, spacing, type } from '../src/theme';
 
 /**
@@ -24,11 +30,39 @@ export default function SaveUrl() {
   const [url, setUrl] = useState(sharedUrl ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewMetadata, setPreviewMetadata] = useState<LinkMetadata | null>(null);
+  const [metadataForUrl, setMetadataForUrl] = useState<string | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
   const autoSaveStarted = useRef<string | null>(null);
 
   const trimmed = url.trim();
   const valid = isValidUrl(trimmed);
   const platform = valid ? detectPlatform(trimmed) : null;
+  const shownMetadata = metadataForUrl === trimmed ? previewMetadata : null;
+
+  useEffect(() => {
+    if (!valid || !userId) return;
+    const candidateUrl = trimmed;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setMetadataLoading(true);
+      void fetchLinkMetadata(candidateUrl).then((metadata) => {
+        if (cancelled) return;
+        setPreviewMetadata(metadata);
+        setMetadataForUrl(candidateUrl);
+        setMetadataLoading(false);
+      }).catch(() => {
+        if (cancelled) return;
+        setPreviewMetadata(null);
+        setMetadataForUrl(candidateUrl);
+        setMetadataLoading(false);
+      });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [trimmed, userId, valid]);
 
   const doSave = useCallback(async (sharedValue?: string) => {
     const valueToSave = sharedValue?.trim() || trimmed;
@@ -39,7 +73,8 @@ export default function SaveUrl() {
     }
     setBusy(true);
     setError(null);
-    const res = await saveUrl(valueToSave, { userId, source });
+    const metadata = metadataForUrl === valueToSave ? previewMetadata : await fetchLinkMetadata(valueToSave);
+    const res = await saveUrl(valueToSave, { userId, source, metadata });
     setBusy(false);
 
     if (!res.ok) {
@@ -52,11 +87,36 @@ export default function SaveUrl() {
       return;
     }
     if (res.duplicate) {
+      void useLibrary.getState().loadItems({ force: true });
       router.replace({ pathname: '/content/[id]', params: { id: res.item.id, duplicate: '1' } });
       return;
     }
+    void useLibrary.getState().loadItems({ force: true });
+    if (userId) {
+      void logProductEvent(userId, 'content_saved');
+      if (source === 'share_extension') void logProductEvent(userId, 'share_extension_used');
+    }
     router.replace({ pathname: '/content/[id]', params: { id: res.item.id } });
-  }, [busy, router, source, trimmed, userId]);
+  }, [busy, metadataForUrl, previewMetadata, router, source, trimmed, userId]);
+
+  const retryPreview = async () => {
+    if (!valid || platform !== 'Instagram' || !userId || metadataLoading) return;
+    const candidateUrl = trimmed;
+    setMetadataLoading(true);
+    try {
+      const metadata = await fetchLinkMetadata(candidateUrl, { force: true });
+      if (trimmed !== candidateUrl) return;
+      setPreviewMetadata(metadata);
+      setMetadataForUrl(candidateUrl);
+    } catch {
+      if (trimmed === candidateUrl) {
+        setPreviewMetadata(null);
+        setMetadataForUrl(candidateUrl);
+      }
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (source !== 'share_extension' || !sharedUrl || !userId || !isValidUrl(sharedUrl)) return;
@@ -111,11 +171,25 @@ export default function SaveUrl() {
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         {platform ? (
           <View style={styles.preview}>
-            <Text style={{ fontSize: 22, marginRight: 12 }}>{platformEmoji[platform]}</Text>
+            {shownMetadata?.thumbnail_url ? (
+              <Image source={{ uri: shownMetadata.thumbnail_url }} resizeMode="cover" style={styles.previewImage} />
+            ) : (
+              <View style={styles.previewImageFallback}>
+                <KIBPlatformLogo platform={platform} size={22} />
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={{ color: colors.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>
-                {platform} {detectContentType(trimmed)}
+                {shownMetadata?.title ?? `${platform} ${detectContentType(trimmed)}`}
               </Text>
+              <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 3 }} numberOfLines={1}>
+                {shownMetadata?.creator_handle ?? shownMetadata?.creator_name ?? (metadataLoading ? 'Fetching creator details…' : 'Creator details unavailable')}
+              </Text>
+              {platform === 'Instagram' && metadataForUrl === trimmed && !shownMetadata && !metadataLoading ? (
+                <Pressable onPress={() => void retryPreview()} accessibilityRole="button" accessibilityLabel="Retry Instagram preview">
+                  <Text style={{ color: colors.accent, fontSize: 12, marginTop: 3 }}>Retry preview</Text>
+                </Pressable>
+              ) : null}
               <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>
                 {trimmed}
               </Text>
@@ -123,9 +197,11 @@ export default function SaveUrl() {
           </View>
         ) : null}
         <Text style={[type.caption as any, { color: colors.textMuted, textAlign: 'center', marginVertical: spacing.md }]}>
-          The platform and content type are detected from the URL itself.
+          {platform === 'Instagram'
+            ? 'Instagram URLs are sent to an external preview provider for public metadata.'
+            : 'The platform and content type are detected from the URL itself.'}
         </Text>
-        <KIBButton label={busy ? 'Saving…' : 'Save'} onPress={doSave} disabled={!valid || busy} />
+        <KIBButton label={busy ? 'Saving…' : 'Save'} onPress={() => void doSave()} disabled={!valid || busy} />
       </View>
     </View>
   );
@@ -154,4 +230,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  previewImage: { width: 70, height: 78, borderRadius: radius.sm, marginRight: 12, backgroundColor: colors.surface3 },
+  previewImageFallback: { width: 70, height: 78, borderRadius: radius.sm, marginRight: 12, backgroundColor: colors.surface3, alignItems: 'center', justifyContent: 'center' },
 });

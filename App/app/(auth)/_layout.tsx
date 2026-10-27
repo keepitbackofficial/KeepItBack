@@ -1,11 +1,13 @@
-import { useAuth } from '@clerk/expo';
-import { Redirect, Stack } from 'expo-router';
+import { useAuth } from '../../src/auth/AuthProvider';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { colors } from '../../src/theme';
 
 /** Guard: only reachable while signed out; signed-in users go home. */
 export default function AuthLayout() {
   const { isLoaded, isSignedIn } = useAuth();
+  const segments = useSegments();
+  const isPasswordReset = segments.includes('reset-password');
   if (!isLoaded) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -13,6 +15,6 @@ export default function AuthLayout() {
       </View>
     );
   }
-  if (isSignedIn) return <Redirect href="/(tabs)/home" />;
+  if (isSignedIn && !isPasswordReset) return <Redirect href="/(tabs)/home" />;
   return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }} />;
 }

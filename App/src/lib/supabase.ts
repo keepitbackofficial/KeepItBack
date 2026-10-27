@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getAccessToken } from './clerkToken';
+import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -18,11 +20,9 @@ export class NotConfiguredError extends Error {
 let client: SupabaseClient | null = null;
 
 /**
- * Real Supabase client using only public/anon credentials. Clerk's current
- * session JWT is attached through the v2 `accessToken` callback, so every
- * request carries a verified Clerk-issued token after third-party auth is
- * configured (README §Clerk ↔ Supabase). Never pass the service-role key
- * here — it must stay in server-side Edge Function secrets only.
+ * Supabase Auth is the identity provider and Supabase is also the data store.
+ * This client only uses the public anon/publishable key; service-role keys
+ * must stay in server-side Edge Function secrets only.
  */
 export function getSupabase(): SupabaseClient {
   if (!isSupabaseConfigured) {
@@ -31,12 +31,10 @@ export function getSupabase(): SupabaseClient {
   if (!client) {
     client = createClient(url as string, anonKey as string, {
       auth: {
-        // Clerk is the identity provider; Supabase Auth itself is not used.
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      async accessToken() {
-        return await getAccessToken();
+        storage: Platform.OS === 'web' ? undefined : AsyncStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
       },
     });
   }
@@ -51,7 +49,7 @@ export function describeDbError(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'message' in error) {
     const e = error as { message?: string; code?: string; details?: string };
     if (e.code === 'PGRST301' || e.code === '42501') {
-      return 'Permission denied. Make sure the Supabase third-party auth (Clerk) integration is configured so requests carry your identity.';
+      return 'Permission denied. Check that you are signed in and that the Supabase row-level security policies are installed.';
     }
     return e.message || 'Request failed.';
   }

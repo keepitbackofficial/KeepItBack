@@ -1,8 +1,9 @@
-import { useAuth } from '@clerk/expo';
+import { useAuth } from '../src/auth/AuthProvider';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { KIBText as Text } from '../src/components/KIBText';
 import { KIBButton } from '../src/components/KIBPrimitives';
 import { colors, spacing } from '../src/theme';
 import { isValidUrl } from '../src/lib/platform';

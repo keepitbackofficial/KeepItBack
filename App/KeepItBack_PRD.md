@@ -1,5 +1,9 @@
 # KeepItBack — Product Requirements Document (PRD)
 
+> **Authentication update (2026-10-28):** Supabase Auth is now the app's
+> identity provider and supersedes the Clerk-specific requirements in this
+> earlier brief. The mobile client and Edge Functions must use Supabase Auth.
+
 **Document Version:** 1.0  
 **Status:** Product Definition / Production Planning  
 **Product:** KeepItBack  

@@ -1,0 +1,324 @@
+<!DOCTYPE html><html class="light" lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_tab" name="shell-type"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "outline-variant": "#e6d3cf",
+          "tertiary": "#8b493d",
+          "primary-fixed": "#ffdad4",
+          "error": "#ba1a1a",
+          "surface-container-highest": "#ebe0e1",
+          "secondary-fixed-dim": "#f0baaf",
+          "on-secondary-fixed-variant": "#633d35",
+          "on-tertiary-fixed": "#390b05",
+          "on-secondary-container": "#7a5149",
+          "tertiary-fixed-dim": "#ffb4a6",
+          "inverse-surface": "#352f30",
+          "on-primary-fixed": "#390c05",
+          "surface-container-high": "#f1e6e7",
+          "primary": "#8a4a3f",
+          "espresso": "#1c1718",
+          "muted-taupe": "#635859",
+          "on-primary": "#ffffff",
+          "on-surface": "#1c1718",
+          "surface-variant": "#f4e8e5",
+          "surface-container": "#fbf5f3",
+          "secondary-fixed": "#ffdad3",
+          "tertiary-container": "#a96154",
+          "on-primary-fixed-variant": "#70362b",
+          "on-background": "#1c1718",
+          "on-secondary": "#ffffff",
+          "surface-container-low": "#fbf5f3",
+          "inverse-primary": "#ffb4a6",
+          "outline": "#786b6d",
+          "on-tertiary-fixed-variant": "#71352a",
+          "secondary": "#7e544c",
+          "background": "#f3e4e0",
+          "surface-dim": "#e2d7d8",
+          "secondary-container": "#ffc8bd",
+          "on-error": "#ffffff",
+          "on-tertiary-container": "#fffbff",
+          "on-tertiary": "#ffffff",
+          "surface-bright": "#ffffff",
+          "surface-tint": "#8c4d41",
+          "surface": "#ffffff",
+          "tertiary-fixed": "#ffdad4",
+          "on-surface-variant": "#635859",
+          "primary-fixed-dim": "#ffb4a6",
+          "surface-container-lowest": "#ffffff",
+          "on-error-container": "#93000a",
+          "inverse-on-surface": "#f9eeef",
+          "on-secondary-fixed": "#30130d",
+          "on-primary-container": "#fffbff",
+          "primary-container": "#1c1718",
+          "error-container": "#ffdad6"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-md": "1rem",
+          "space-lg": "1.5rem",
+          "margin": "2rem",
+          "margin-mobile": "1rem",
+          "space-xl": "2rem",
+          "space-xs": "0.5rem",
+          "gutter-mobile": "1rem",
+          "space-sm": "0.75rem",
+          "gutter": "1.5rem"
+        },
+        "fontFamily": {
+          "display-lg": ["Playfair Display", "serif"],
+          "body-md": ["Plus Jakarta Sans", "sans-serif"],
+          "headline-sm": ["Playfair Display", "serif"],
+          "title-md": ["Plus Jakarta Sans", "sans-serif"],
+          "label-sm": ["Plus Jakarta Sans", "sans-serif"],
+          "headline-md": ["Playfair Display", "serif"],
+          "body-sm": ["Plus Jakarta Sans", "sans-serif"],
+          "body-lg": ["Plus Jakarta Sans", "sans-serif"],
+          "display-lg-mobile": ["Playfair Display", "serif"],
+          "label-md": ["Plus Jakarta Sans", "sans-serif"],
+          "headline-lg": ["Playfair Display", "serif"],
+          "title-sm": ["Plus Jakarta Sans", "sans-serif"]
+        },
+        "fontSize": {
+          "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+          "body-md": ["15px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+          "headline-sm": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+          "title-md": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+          "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+          "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+          "body-sm": ["13px", { "lineHeight": "20px", "letterSpacing": "0.005em", "fontWeight": "400" }],
+          "body-lg": ["18px", { "lineHeight": "28px", "letterSpacing": "0em", "fontWeight": "400" }],
+          "display-lg-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+          "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+          "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+          "title-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }]
+        }
+      }
+    }
+  };
+</script><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f3e4e0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-[#f3e4e0] font-body-md text-body-md text-[#1c1718] antialiased flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-[#ffffff]/90 backdrop-blur-xl border-b border-[#e6d3cf] shadow-[0_1px_3px_rgba(28,23,24,0.04)]"><div class="flex justify-between items-center px-margin-mobile pt-space-xs text-[#635859] font-label-sm text-label-sm select-none"><span class="">9:41</span><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-[16px]">signal_cellular_alt</span><span class="material-symbols-outlined text-[16px]">wifi</span><span class="material-symbols-outlined text-[16px]">battery_full</span></div></div><div class="h-16 px-margin-mobile flex items-center justify-between"><div class="flex flex-col justify-center"><div class="flex items-center gap-space-sm"><span class="font-headline-md text-headline-md tracking-tight text-[#1c1718]">KeepItBack</span></div><span class="font-label-sm text-label-sm text-[#635859] tracking-normal">Save anything. Find everything.</span></div><div class="flex items-center gap-space-xs"><div class="w-8 h-8 rounded-full bg-[#fbf5f3] flex items-center justify-center border border-[#e6d3cf] text-[#1c1718]"><span class="material-symbols-outlined text-[#1c1718] text-[18px]">person</span></div></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-[#f3e4e0] px-margin-mobile"><div class="flex flex-col w-full">
+<!-- Status & Database Sync Meta Bar -->
+<div class="flex items-center justify-between py-space-sm mb-space-sm">
+<div class="flex items-center gap-space-sm bg-[#ffffff] border border-[#e6d3cf] px-space-md py-space-xs rounded-full shadow-sm">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-600 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+</span>
+<span class="font-label-sm text-label-sm text-[#1c1718] font-medium">Secure &amp; Synced</span>
+</div>
+<div class="flex items-center gap-space-xs bg-[#ffffff] border border-[#e6d3cf] px-space-md py-space-xs rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-[#8a4a3f]">cloud_done</span>
+<span class="font-label-sm text-label-sm text-[#635859] font-medium">All links saved</span>
+</div>
+</div>
+<!-- Search & Filter Controls -->
+<div class="relative w-full mb-space-md">
+<div class="flex items-center bg-[#ffffff] border border-[#e6d3cf] rounded-xl px-space-md h-12 shadow-sm focus-within:border-[#1c1718] focus-within:ring-1 focus-within:ring-[#1c1718]/30 transition-all">
+<span class="material-symbols-outlined text-[#786b6d] text-[20px] mr-space-sm">search</span>
+<input class="w-full bg-transparent text-[#1c1718] placeholder:text-[#786b6d] font-body-md text-body-md focus:outline-none" placeholder="Search archive, tags, or domains..." type="text">
+<button aria-label="Filter archive" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#635859] hover:text-[#1c1718] transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+</div>
+<!-- Horizontal Scroll Platform Filter Chips -->
+<div class="flex items-center gap-space-sm overflow-x-auto no-scrollbar -mx-margin-mobile px-margin-mobile pb-space-sm mb-space-md"><button class="flex items-center justify-center h-10 px-space-md rounded-xl bg-[#1c1718] text-[#ffffff] font-label-md text-label-md font-semibold whitespace-nowrap shadow-sm min-w-[44px] transition-colors" type="button">
+  All (4)
+</button>
+<button aria-label="Instagram" class="flex items-center justify-center h-10 w-10 min-w-[40px] rounded-xl bg-[#ffffff] border border-[#e6d3cf] hover:bg-[#fbf5f3] text-[#635859] hover:text-[#1c1718] transition-colors flex-shrink-0 shadow-sm" title="Instagram" type="button">
+<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+<path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"></path>
+</svg>
+</button>
+<button aria-label="TikTok" class="flex items-center justify-center h-10 w-10 min-w-[40px] rounded-xl bg-[#ffffff] border border-[#e6d3cf] hover:bg-[#fbf5f3] text-[#635859] hover:text-[#1c1718] transition-colors flex-shrink-0 shadow-sm" title="TikTok" type="button">
+<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+<path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-1.01-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"></path>
+</svg>
+</button>
+<button aria-label="YouTube" class="flex items-center justify-center h-10 w-10 min-w-[40px] rounded-xl bg-[#ffffff] border border-[#e6d3cf] hover:bg-[#fbf5f3] text-[#635859] hover:text-[#1c1718] transition-colors flex-shrink-0 shadow-sm" title="YouTube" type="button">
+<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+<path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"></path>
+</svg>
+</button>
+<button aria-label="X / Twitter" class="flex items-center justify-center h-10 w-10 min-w-[40px] rounded-xl bg-[#ffffff] border border-[#e6d3cf] hover:bg-[#fbf5f3] text-[#635859] hover:text-[#1c1718] transition-colors flex-shrink-0 shadow-sm" title="X / Twitter" type="button">
+<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+<path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+</svg>
+</button>
+<button aria-label="Articles" class="flex items-center justify-center h-10 w-10 min-w-[40px] rounded-xl bg-[#ffffff] border border-[#e6d3cf] hover:bg-[#fbf5f3] text-[#635859] hover:text-[#1c1718] transition-colors flex-shrink-0 shadow-sm" title="Articles" type="button">
+<span class="material-symbols-outlined text-[20px]">article</span>
+</button>
+<button aria-label="Images" class="flex items-center justify-center h-10 w-10 min-w-[40px] rounded-xl bg-[#ffffff] border border-[#e6d3cf] hover:bg-[#fbf5f3] text-[#635859] hover:text-[#1c1718] transition-colors flex-shrink-0 shadow-sm" title="Images" type="button">
+<span class="material-symbols-outlined text-[20px]">image</span>
+</button></div>
+<!-- Artifact Cards Feed -->
+<div class="flex flex-col gap-space-md w-full">
+<!-- Card 1: Instagram Reel -->
+<article class="flex flex-col bg-[#ffffff] rounded-xl overflow-hidden shadow-sm border border-[#e6d3cf] hover:shadow-md transition-all duration-200">
+<div class="relative w-full aspect-[16/9] bg-[#fbf5f3] overflow-hidden">
+<img alt="Architectural detail &amp; daylighting in Kyoto" class="w-full h-full object-cover" data-alt="Intimate view of traditional wooden architectural timber framing in Kyoto temple with delicate natural morning sunlight casting geometric shadows across polished dark cedar flooring and tatami mat edges, peaceful minimalist editorial aesthetic in muted obsidian, warm cedar, and pale daylight tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCKZfMFp2qhosAnF2Uf2VMrm3OHz9A85v69cFUWTZWgRuS9pslg2Ef973srhYS5-ewmevyV-_2EzlPRssrPGtMi9mY-r2A-85ZAA9IzWEk7YN01W4V2VKeBVyRNhdultlfuUpBYqdYjFKvg72_NHGkT7GhEBNer6NyF8l7lYfdKV4jp7jVqXV1pWW32JfEof2X8Bc-VtndlSumvrbpttw8WjgviMaOK1bfbwFyokSihLhEnn4zgt6gd">
+<div class="absolute top-space-sm left-space-sm flex items-center gap-space-xs bg-[#ffffff]/95 backdrop-blur-md px-space-sm py-space-xs rounded-lg text-[#1c1718] border border-[#e6d3cf] shadow-sm">
+<span class="material-symbols-outlined text-[15px] text-[#8a4a3f]">camera_alt</span>
+<span class="font-label-sm text-label-sm font-semibold">Instagram Reel</span>
+</div>
+<div class="absolute bottom-space-sm right-space-sm bg-[#1c1718]/80 backdrop-blur-md px-space-sm py-0.5 rounded-md text-white font-label-sm text-label-sm">
+          0:32
+        </div>
+</div>
+<div class="flex flex-col p-space-md gap-space-xs">
+<div class="flex items-start justify-between gap-space-sm">
+<h2 class="font-headline-sm text-headline-sm text-[#1c1718] flex-1 line-clamp-2">
+            Architectural detail &amp; daylighting in Kyoto
+          </h2>
+<button aria-label="Item actions" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#786b6d] hover:text-[#1c1718] transition-colors flex-shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<p class="font-body-sm text-body-sm text-[#635859] truncate">instagram.com/reels/C9kM9d...</p>
+<div class="flex items-center justify-between mt-space-sm pt-space-xs border-t border-[#e6d3cf]">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#architecture</span>
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#lighting</span>
+</div>
+<div class="flex items-center gap-space-xs text-[#786b6d]">
+<span class="font-label-sm text-label-sm">2h ago</span>
+<button aria-label="Copy link" class="w-8 h-8 flex items-center justify-center rounded-lg hover:text-[#1c1718] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 2: TikTok Video -->
+<article class="flex flex-col bg-[#ffffff] rounded-xl overflow-hidden shadow-sm border border-[#e6d3cf] hover:shadow-md transition-all duration-200">
+<div class="relative w-full aspect-[16/9] bg-[#fbf5f3] overflow-hidden">
+<img alt="Motion design principles breakdown" class="w-full h-full object-cover" data-alt="Digital kinetic typography breakdown with smooth bezier easing curves rendered in minimalist dark UI interface with deep violet wireframes, clean vector paths, timeline scrubber at 0:45 timestamp, high end typography and motion graphic study aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDp9hkfuG6pmxjxvvkU1ES6tg61MNp3aNGZOagWxn7-ddsIRpi0BYF6oFBxW6hfWWYjP4iSo3sOHKCnNUJ1LQKBU33h_kqu7meHD6qXWkaCnZZ-rijpT3A4xZx7ddN6RylQRH1-aUg9CnnXwf30nKyKa_wb-AKI1Jt_Qw_LswmufxbLWeCPhR_bW2mFH4Zmg-tgtBRnft1cLGEnFNHSNsIH9DIQP2ZbEsWz-UPm0bx_DzmQFLvI9QKA">
+<div class="absolute top-space-sm left-space-sm flex items-center gap-space-xs bg-[#ffffff]/95 backdrop-blur-md px-space-sm py-space-xs rounded-lg text-[#1c1718] border border-[#e6d3cf] shadow-sm">
+<span class="material-symbols-outlined text-[15px] text-[#8a4a3f]">play_circle</span>
+<span class="font-label-sm text-label-sm font-semibold">TikTok</span>
+</div>
+<div class="absolute bottom-space-sm right-space-sm bg-[#1c1718]/80 backdrop-blur-md px-space-sm py-0.5 rounded-md text-white font-label-sm text-label-sm">
+          0:45
+        </div>
+</div>
+<div class="flex flex-col p-space-md gap-space-xs">
+<div class="flex items-start justify-between gap-space-sm">
+<h2 class="font-headline-sm text-headline-sm text-[#1c1718] flex-1 line-clamp-2">
+            Motion design principles breakdown (0:45)
+          </h2>
+<button aria-label="Item actions" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#786b6d] hover:text-[#1c1718] transition-colors flex-shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<p class="font-body-sm text-body-sm text-[#635859] truncate">tiktok.com/@studio.grain</p>
+<div class="flex items-center justify-between mt-space-sm pt-space-xs border-t border-[#e6d3cf]">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#motion</span>
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#design</span>
+</div>
+<div class="flex items-center gap-space-xs text-[#786b6d]">
+<span class="font-label-sm text-label-sm">Yesterday</span>
+<button aria-label="Copy link" class="w-8 h-8 flex items-center justify-center rounded-lg hover:text-[#1c1718] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 3: Minimal Domain Fallback (Honest Missing Metadata) -->
+<article class="flex flex-col bg-[#ffffff] rounded-xl p-space-md shadow-sm border border-[#e6d3cf] hover:shadow-md transition-all duration-200">
+<div class="flex items-center justify-between mb-space-sm">
+<div class="flex items-center gap-space-xs bg-[#fbf5f3] px-space-sm py-space-xs rounded-lg border border-[#e6d3cf]">
+<span class="material-symbols-outlined text-[16px] text-[#8a4a3f]">article</span>
+<span class="font-label-sm text-label-sm text-[#1c1718] font-semibold">danieldelaney.com</span>
+</div>
+<span class="font-label-sm text-label-sm text-[#786b6d]">3d ago</span>
+</div>
+<div class="flex items-start justify-between gap-space-sm mb-space-xs">
+<a class="font-body-md text-body-md text-[#8a4a3f] font-medium hover:underline break-all" href="#">
+          https://danieldelaney.com/essays/taste-and-effort
+        </a>
+<button aria-label="Item actions" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#786b6d] hover:text-[#1c1718] transition-colors flex-shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<div class="bg-[#fbf5f3] border border-[#e6d3cf] rounded-lg p-space-sm my-space-xs flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[18px] text-[#a96154]">edit_note</span>
+<p class="font-body-sm text-body-sm text-[#1c1718] italic">"Must read on creative endurance"</p>
+</div>
+<div class="flex items-center justify-between mt-space-sm pt-space-xs border-t border-[#e6d3cf]">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-sm py-0.5 rounded-md bg-[#fbf5f3] text-[#635859] border border-[#e6d3cf] font-label-sm text-label-sm font-medium">Full Article</span>
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#essay</span>
+</div>
+<button aria-label="Copy link" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#786b6d] hover:text-[#1c1718] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</article>
+<!-- Card 4: YouTube Video Card -->
+<article class="flex flex-col bg-[#ffffff] rounded-xl overflow-hidden shadow-sm border border-[#e6d3cf] hover:shadow-md transition-all duration-200">
+<div class="relative w-full aspect-[16/9] bg-[#fbf5f3] overflow-hidden">
+<img alt="Dieter Rams: 10 Principles for Good Design Documentary" class="w-full h-full object-cover" data-alt="Monochrome studio portrait of industrial designer Dieter Rams examining a classic Braun T3 pocket radio, clean mid-century modernist workshop, neutral charcoal and silver tones, timeless functionalist design aesthetic with soft cinematic studio key light." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyRC0SnrGZCln2Gwjcwc6cMcEUGpMmvhF3ZAzmUytofXFvCVLUhRmeW8r75hmQ4jSFUf_fswQyLh3oH_JiWzIBvV9fXKfiA3wf4ASniOjmyNsFcQ06TCvTPdAdC3qVSXQ7Ul8OBsN6NQH5Jd7b5N5pl5miHioBBh9ziCgFWswNPr_LIoaQYmkcBoIDU3DkAnTR_uKAt_xn-W1HJTGOiPd6JNZAWM4FKv4zYHaGXeqiSmCCZale7M80">
+<div class="absolute top-space-sm left-space-sm flex items-center gap-space-xs bg-[#ffffff]/95 backdrop-blur-md px-space-sm py-space-xs rounded-lg text-[#1c1718] border border-[#e6d3cf] shadow-sm">
+<span class="material-symbols-outlined text-[15px] text-[#8a4a3f]">video_library</span>
+<span class="font-label-sm text-label-sm font-semibold">YouTube</span>
+</div>
+<div class="absolute bottom-space-sm right-space-sm bg-[#1c1718]/80 backdrop-blur-md px-space-sm py-0.5 rounded-md text-white font-label-sm text-label-sm">
+          14:22
+        </div>
+</div>
+<div class="flex flex-col p-space-md gap-space-xs">
+<div class="flex items-start justify-between gap-space-sm">
+<h2 class="font-headline-sm text-headline-sm text-[#1c1718] flex-1 line-clamp-2">
+            Dieter Rams: 10 Principles for Good Design Documentary
+          </h2>
+<button aria-label="Item actions" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#786b6d] hover:text-[#1c1718] transition-colors flex-shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<p class="font-body-sm text-body-sm text-[#635859] truncate">youtube.com/watch?v=principles-rams</p>
+<div class="flex items-center justify-between mt-space-sm pt-space-xs border-t border-[#e6d3cf]">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#industrial</span>
+<span class="px-space-sm py-0.5 rounded-md bg-[#ffdad4] text-[#8a4a3f] font-label-sm text-label-sm font-semibold">#principles</span>
+</div>
+<div class="flex items-center gap-space-xs text-[#786b6d]">
+<span class="font-label-sm text-label-sm">4d ago</span>
+<button aria-label="Copy link" class="w-8 h-8 flex items-center justify-center rounded-lg hover:text-[#1c1718] transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</article>
+</div>
+</div>
+<script>
+  // Simple interaction handler for active chip selection & clipboard feedback
+  document.querySelectorAll('button[aria-label="Copy link"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const icon = btn.querySelector('.material-symbols-outlined');
+      if (icon) {
+        const originalText = icon.textContent;
+        icon.textContent = 'check';
+        icon.classList.add('text-emerald-700');
+        setTimeout(() => {
+          icon.textContent = originalText;
+          icon.classList.remove('text-emerald-700');
+        }, 1500);
+      }
+    });
+  });
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-[#ffffff]/95 backdrop-blur-xl border-t border-[#e6d3cf] shadow-[0_-1px_3px_rgba(28,23,24,0.04)]" data-active-classes="text-[#1c1718]"><div class="h-16 px-space-sm flex items-center justify-around relative"><a aria-current="page" class="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-space-xs transition-colors text-[#1c1718] font-semibold" data-path="home" href="#"><span class="material-symbols-outlined text-[24px]">grid_view</span><span class="font-label-sm text-label-sm mt-space-xs">Home</span></a><a class="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-space-xs text-[#786b6d] hover:text-[#1c1718] transition-colors" data-path="search" href="#"><span class="material-symbols-outlined text-[24px]">search</span><span class="font-label-sm text-label-sm mt-space-xs">Search</span></a><a class="flex items-center justify-center min-w-[48px] min-h-[48px] w-12 h-12 rounded-full bg-[#1c1718] text-[#ffffff] shadow-md hover:opacity-95 transition-opacity -mt-space-sm" data-path="quick-save" href="#"><span class="material-symbols-outlined text-[28px] text-white">add</span></a><a class="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-space-xs text-[#786b6d] hover:text-[#1c1718] transition-colors" data-path="library" href="#"><span class="material-symbols-outlined text-[24px]">folder_copy</span><span class="font-label-sm text-label-sm mt-space-xs">Library</span></a><a class="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-space-xs text-[#786b6d] hover:text-[#1c1718] transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined text-[24px]">tune</span><span class="font-label-sm text-label-sm mt-space-xs">Profile</span></a></div></nav>
+
+
+</body></html>

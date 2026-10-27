@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { KIBText as Text } from '../../src/components/KIBText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth, useUser } from '@clerk/expo';
+import { useAuth, useUser } from '../../src/auth/AuthProvider';
 import { fetchProfile } from '../../src/api/profile';
 import { fetchConnectedAccounts } from '../../src/api/accounts';
 import { KIBAvatar } from '../../src/components/KIBPrimitives';
+import { KIBPlatformLogo } from '../../src/components/KIBPlatformLogo';
 import { colors, spacing, type } from '../../src/theme';
 
 /**
- * SCREEN — PROFILE. Name/email come from the real Clerk user (or the
+ * SCREEN — PROFILE. Name/email come from the real Supabase user (or the
  * synced profile row); linked integrations only show connected state when
  * the connected_accounts table actually has a row.
  */
@@ -18,6 +20,7 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const { user } = useUser();
   const { signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
   const [dbProfileName, setDbProfileName] = useState<string | null>(null);
   const [igLinked, setIgLinked] = useState<'' | 'checking' | 'yes' | 'no'>('checking');
 
@@ -35,6 +38,19 @@ export default function Profile() {
   const displayName = user?.fullName || dbProfileName || user?.emailAddresses[0]?.emailAddress.split('@')[0] || 'Your account';
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/(auth)/sign-in');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please check your connection and try again.';
+      setSigningOut(false);
+      Alert.alert('Could not sign out', message);
+    }
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
       <View style={{ alignItems: 'center' }}>
@@ -47,29 +63,37 @@ export default function Profile() {
         <Row label="Connected accounts" value={'›'} onPress={() => router.push('/settings/connected-accounts')} />
         <Row label="Settings" value="›" onPress={() => router.push('/settings')} />
         <Row
-          label="Instagram DM link"
+          label="DM link"
+          platform="Instagram"
           value={igLinked === 'yes' ? 'Linked' : igLinked === 'no' ? 'Not linked' : '…'}
           onPress={() => router.push('/settings/connected-accounts')}
         />
       </View>
 
       <View style={{ flex: 1 }} />
-      <Text
-        onPress={() => void signOut()}
+      <Pressable
+        onPress={() => void handleSignOut()}
+        disabled={signingOut}
         accessibilityRole="button"
         accessibilityLabel="Sign out"
-        style={{ color: colors.error, textAlign: 'center', fontSize: 15, padding: spacing.lg }}
+        accessibilityState={{ disabled: signingOut }}
+        style={{ alignItems: 'center', padding: spacing.lg, opacity: signingOut ? 0.55 : 1 }}
       >
-        Sign out
-      </Text>
+        <Text style={{ color: colors.error, textAlign: 'center', fontSize: 15 }}>
+          {signingOut ? 'Signing out…' : 'Sign out'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
 
-function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
+function Row({ label, value, onPress, platform }: { label: string; value: string; onPress?: () => void; platform?: 'Instagram' }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" style={styles.row}>
-      <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>{label}</Text>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={platform ? `${platform} ${label}` : label} style={styles.row}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+        {platform ? <KIBPlatformLogo platform={platform} size={16} /> : null}
+        <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>{label}</Text>
+      </View>
       <Text style={{ color: onValueColor(value), fontSize: 14 }}>{value}</Text>
     </Pressable>
   );

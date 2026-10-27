@@ -1,5 +1,7 @@
-import { Tabs, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Redirect, Tabs, useRouter } from 'expo-router';
+import { useAuth } from '../../src/auth/AuthProvider';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { KIBText as Text } from '../../src/components/KIBText';
 import { colors, radius } from '../../src/theme';
 
 /** Bottom navigation: Home | Search | + Save | Library | Profile (spec §2). */
@@ -18,6 +20,16 @@ function SaveTabButton() {
 }
 
 export default function TabsLayout() {
+  const { isLoaded, isSignedIn } = useAuth();
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.accent} />
+      </View>
+    );
+  }
+  if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+
   return (
     <Tabs
       screenOptions={{

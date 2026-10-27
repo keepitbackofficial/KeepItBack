@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { KIBText as Text } from '../../src/components/KIBText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KIBCollectionRow } from '../../src/components/KIBContent';
@@ -14,13 +15,16 @@ export default function CollectionsIndex() {
 
   useEffect(() => {
     void loadCollections();
-  }, []);
+  }, [loadCollections]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       <View style={{ paddingHorizontal: spacing.xl, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={[type.h3 as any, { color: colors.text }]}>Collections</Text>
-        <KIBButton label="+ New" onPress={() => router.push('/collections/create')} />
+        <View style={{ alignItems: 'flex-end', gap: spacing.xs }}>
+          <KIBButton label="+ New" onPress={() => router.push('/collections/create')} />
+          <KIBButton label="Join with code" variant="secondary" onPress={() => router.push('/collections/join')} />
+        </View>
       </View>
 
       {collectionsLoading && collections.length === 0 ? (

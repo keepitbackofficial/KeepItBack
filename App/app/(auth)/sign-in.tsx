@@ -1,147 +1,115 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Linking from 'expo-linking';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSignIn } from '@clerk/expo';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { getSupabase } from '../../src/lib/supabase';
 import { colors, radius, spacing, type } from '../../src/theme';
 
-/**
- * SCREEN — SIGN IN. Real Clerk email/password sign-in against the
- * configured Clerk instance (@clerk/expo v4 resource API). All error
- * text comes from actual Clerk responses; nothing is mocked.
- */
 export default function SignIn() {
   const router = useRouter();
   const { shareUrl: shareUrlParam } = useLocalSearchParams<{ shareUrl?: string | string[] }>();
   const shareUrl = Array.isArray(shareUrlParam) ? shareUrlParam[0] : shareUrlParam;
-  const { signIn, errors } = useSignIn();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [mode, setMode] = useState<'password' | 'email_code'>('password');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formOffset = useRef(new Animated.Value(8)).current;
 
-  const readGlobalError = (): string | null => {
-    const g = errors?.global?.[0] as any;
-    if (g) return g.longMessage || g.message || null;
-    return null;
-  };
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(formOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.timing(formOffset, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]).start();
+    return () => { formOpacity.stopAnimation(); formOffset.stopAnimation(); };
+  }, [formOffset, formOpacity, mode]);
 
-  const doSignIn = async () => {
-    if (!signIn || busy) return;
-    const emailAddress = email.trim();
-    if (!emailAddress || !password) {
-      setError('Enter your email address and password to sign in.');
-      return;
-    }
+  const onSignedIn = () => router.replace(shareUrl
+    ? { pathname: '/save', params: { url: shareUrl, source: 'share_extension' } }
+    : '/(tabs)/home');
 
+  const signInWithPassword = async () => {
+    if (busy) return;
+    if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
     setBusy(true);
     setError(null);
     try {
-      const res = await signIn.password({ emailAddress, password });
-      if (res.error) {
-        setError(
-          (res as any).error?.errors?.[0]?.longMessage ||
-            res.error.message ||
-            readGlobalError() ||
-            'Sign-in failed. Check your details and try again.',
-        );
-        return;
-      }
-      if (signIn.status === 'complete') {
-        const finalize = await signIn.finalize();
-        if (finalize.error) {
-          setError(finalize.error.message || 'Signed in, but could not activate your session. Try again.');
-          return;
-        }
-        if (shareUrl) {
-          router.replace({ pathname: '/save', params: { url: shareUrl, source: 'share_extension' } });
-        }
-      } else if (signIn.status === 'needs_second_factor') {
-        setError('Two-factor is enabled on this account and isn\u2019t supported by this flow yet.');
-      } else if (signIn.status === 'needs_identifier') {
-        setError(
-          'Clerk did not accept an email address for this sign-in. Confirm email sign-in is enabled for the Clerk app whose publishable key is configured, then restart Expo with a cleared cache.',
-        );
-      } else {
-        setError(`Sign-in stopped at step "${signIn.status}".`);
-      }
-    } catch (e: any) {
-      setError(
-        e?.errors?.[0]?.longMessage ||
-          e?.errors?.[0]?.message ||
-          e?.message ||
-          readGlobalError() ||
-          'Sign-in failed. Check your connection and try again.',
-      );
-    } finally {
-      setBusy(false);
-    }
+      const { error: authError } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
+      if (authError) { setError(authError.message); return; }
+      onSignedIn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not sign in. Check your connection and try again.');
+    } finally { setBusy(false); }
+  };
+
+  const sendEmailCode = async () => {
+    if (busy) return;
+    if (!email.trim()) { setError('Enter your email address first.'); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const { error: authError } = await getSupabase().auth.signInWithOtp({
+        email: email.trim(),
+        options: { shouldCreateUser: false, emailRedirectTo: Linking.createURL('auth/callback') },
+      });
+      if (authError) { setError(authError.message); return; }
+      setCode('');
+      setMode('email_code');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not send the email code. Try again.');
+    } finally { setBusy(false); }
+  };
+
+  const verifyEmailCode = async () => {
+    if (busy) return;
+    if (!email.trim() || !code.trim()) { setError('Enter the code from your email.'); return; }
+    setBusy(true);
+    setError(null);
+    try {
+      const { error: authError } = await getSupabase().auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
+      if (authError) { setError(authError.message); return; }
+      onSignedIn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not verify this code. Try again.');
+    } finally { setBusy(false); }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}>
       <View style={{ flex: 1, justifyContent: 'center' }}>
         <Text style={[type.display as any, { color: colors.text, textAlign: 'center' }]}>KeepItBack</Text>
-        <Text style={[type.body as any, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md }]}>
-          Save anything. Find everything.
-        </Text>
+        <Text style={[type.body as any, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md }]}>Save anything. Find everything.</Text>
 
-        <View style={{ marginTop: spacing.xxl * 1.2, gap: spacing.md }}>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Email"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            accessibilityLabel="Email"
-            style={styles.input}
-          />
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            autoComplete="password"
-            accessibilityLabel="Password"
-            style={styles.input}
-          />
+        <Animated.View style={{ marginTop: spacing.xxl * 1.2, gap: spacing.md, opacity: formOpacity, transform: [{ translateY: formOffset }] }}>
+          <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" autoComplete="email" accessibilityLabel="Email" style={styles.input} />
+          {mode === 'password' ? <>
+            <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry autoComplete="password" accessibilityLabel="Password" style={styles.input} />
+            <Link href="/(auth)/forgot-password" style={styles.forgot}>Forgot password?</Link>
+            <KIBButton label={busy ? 'Signing in…' : 'Sign in'} onPress={() => void signInWithPassword()} disabled={busy} />
+            <KIBButton label="Other ways to log in" variant="secondary" onPress={() => void sendEmailCode()} disabled={busy} />
+          </> : <>
+            <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>Enter the one-time code sent to {email}.</Text>
+            <TextInput value={code} onChangeText={setCode} placeholder="Email code" placeholderTextColor={colors.textMuted} keyboardType="number-pad" autoComplete="one-time-code" accessibilityLabel="Email sign-in code" style={styles.input} />
+            <KIBButton label={busy ? 'Verifying…' : 'Verify and sign in'} onPress={() => void verifyEmailCode()} disabled={busy} />
+            <KIBButton label="Back to password sign in" variant="ghost" onPress={() => { setError(null); setMode('password'); }} disabled={busy} />
+          </>}
           {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
-          <KIBButton label={busy ? 'Signing in…' : 'Sign in'} onPress={doSignIn} disabled={busy} />
-        </View>
+        </Animated.View>
       </View>
-
-      <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
-        Don&apos;t have an account?{' '}
-        <Link
-          href={shareUrl ? { pathname: '/(auth)/sign-up', params: { shareUrl } } : '/(auth)/sign-up'}
-          style={{ color: colors.accentSoft }}
-        >
-          Sign up
-        </Link>
-      </Text>
+      <Text style={{ color: colors.textMuted, textAlign: 'center' }}>Don&apos;t have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-up', params: { shareUrl } } : '/(auth)/sign-up'} style={{ color: colors.accentSoft }}>Sign up</Link></Text>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  input: {
-    height: 52,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-    fontSize: 15,
-  },
+  input: { height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 15 },
+  forgot: { color: colors.accent, textAlign: 'right', fontSize: 13 },
   errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },
 });

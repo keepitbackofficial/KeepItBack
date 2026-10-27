@@ -1,7 +1,8 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KIBText as Text } from '../../src/components/KIBText';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@clerk/expo';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { isSupabaseConfigured } from '../../src/lib/supabase';
 import { colors, radius, spacing, type } from '../../src/theme';
 
@@ -15,6 +16,16 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const { signOut, userId } = useAuth();
 
+  const performSignOut = async () => {
+    try {
+      await signOut();
+      router.replace('/(auth)/sign-in');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Please check your connection and try again.';
+      Alert.alert('Could not sign out', message);
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -27,6 +38,21 @@ export default function Settings() {
         <Text style={{ color: colors.textMuted }}>›</Text>
       </Pressable>
 
+      <Pressable onPress={() => router.push('/settings/notifications')} accessibilityRole="button" style={styles.row}>
+        <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>Notifications</Text>
+        <Text style={{ color: colors.textMuted }}>›</Text>
+      </Pressable>
+
+      <Pressable onPress={() => router.push('/downloads')} accessibilityRole="button" style={styles.row}>
+        <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>Downloads & storage</Text>
+        <Text style={{ color: colors.textMuted }}>›</Text>
+      </Pressable>
+
+      <Pressable onPress={() => router.push('/settings/privacy')} accessibilityRole="button" style={styles.row}>
+        <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>Privacy & data</Text>
+        <Text style={{ color: colors.textMuted }}>›</Text>
+      </Pressable>
+
       <View style={styles.statusRow}>
         <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>Supabase</Text>
         <Text style={{ color: isSupabaseConfigured ? colors.success : colors.error, fontSize: 14 }}>
@@ -36,7 +62,7 @@ export default function Settings() {
 
       <View style={styles.statusRow}>
         <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>Authentication</Text>
-        <Text style={{ color: colors.success, fontSize: 14 }}>{userId ? 'Clerk active' : 'Signed out'}</Text>
+        <Text style={{ color: colors.success, fontSize: 14 }}>{userId ? 'Supabase active' : 'Signed out'}</Text>
       </View>
 
       <Pressable
@@ -44,7 +70,7 @@ export default function Settings() {
         onPress={() =>
           Alert.alert('Sign out', 'End this session on this device?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+            { text: 'Sign out', style: 'destructive', onPress: () => void performSignOut() },
           ])
         }
         style={styles.row}

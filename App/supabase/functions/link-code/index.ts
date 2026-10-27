@@ -2,34 +2,25 @@
 //
 // POST /functions/v1/link-code/verify
 //   Body: { code }
-//   Auth: Authorization: Bearer <Clerk-issued JWT> (verified against Clerk
-//   JWKS below; the mobile app sends its current Clerk session token).
+//   Auth: Authorization: Bearer <Supabase Auth access token>, verified by
+//   Supabase Auth against the signed-in user.
 //   Verifies the one-time code issued to the user's Instagram DM sender
-//   id and links that sender to the Clerk user id (sub).
+//   id and links that sender to the Supabase user id.
 //
 // Secrets (set with: supabase secrets set NAME=value):
 //   LINK_CODE_SECRET  — HMAC key for one-time codes (required)
-//   CLERK_JWKS_URL    — e.g. https://<app>.clerk.accounts.dev/.well-known/jwks.json
 //
 // Missing configuration returns 503 {code:'not_configured'} — the app
 // shows an honest "Not configured" state, never a fake success.
 
 import { verifyAndLink } from '../_shared/linking.ts';
-import { createRemoteJWKSet, jwtVerify } from 'npm:jose@5.9.0';
+import { getAuthenticatedUser } from '../_shared/auth.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 } as const;
-
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-function getJwks() {
-  if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(Deno.env.get('CLERK_JWKS_URL') ?? ''));
-  }
-  return jwks;
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
@@ -38,28 +29,14 @@ function json(body: unknown, status = 200) {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
-  if (Deno.env.get('LINK_CODE_SECRET') === null || !Deno.env.get('CLERK_JWKS_URL')) {
+  if (Deno.env.get('LINK_CODE_SECRET') === null) {
     return json({ code: 'not_configured' }, 503);
   }
 
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  // Verify the Clerk JWT from the app.
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-  if (!token) return json({ code: 'unauthorized', error: 'Sign in to KeepItBack first.' }, 401);
-
-  let clerkUserId: string;
-  try {
-    const { payload } = await jwtVerify(token, getJwks(), {
-      algorithms: ['RS256', 'EdDSA'],
-    });
-    const sub = payload.sub;
-    if (!sub || typeof sub !== 'string') throw new Error('no sub');
-    clerkUserId = sub;
-  } catch {
-    return json({ code: 'unauthorized', error: 'Your session token is invalid or expired. Sign in again.' }, 401);
-  }
+  const user = await getAuthenticatedUser(req);
+  if (!user) return json({ code: 'unauthorized', error: 'Sign in to KeepItBack first.' }, 401);
 
   let body: { code?: string };
   try {
@@ -73,7 +50,7 @@ Deno.serve(async (req: Request) => {
     return json({ code: 'invalid_code', error: 'That code format doesn\u2019t look right — check the message from Instagram.' }, 400);
   }
 
-  const res = await verifyAndLink(code, clerkUserId);
+  const res = await verifyAndLink(code, user.id);
   switch (res.kind) {
     case 'ok':
       return json({ ok: true, account: res.connectedAccount });
