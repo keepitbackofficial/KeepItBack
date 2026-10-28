@@ -93,7 +93,7 @@ export default function Library() {
 
       {platform === 'All' && counts?.all === 0 ? (
         <KIBEmptyState
-          emoji="📚"
+          icon="book"
           title="Library is empty"
           message="Save a link from Instagram, TikTok, YouTube, or anywhere on the web with the big + button — then it lands here for good."
           actionLabel="Save a link"
@@ -103,7 +103,7 @@ export default function Library() {
         <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xxl }} />
       ) : items.length === 0 ? (
         <KIBEmptyState
-          emoji="🕸️"
+          icon="spider"
           title={`No ${platform} saves yet`}
           message="Nothing saved from this platform yet. Every count on this page comes from what's actually in your library."
         />

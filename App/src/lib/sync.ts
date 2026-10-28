@@ -1,6 +1,7 @@
 import * as Network from 'expo-network';
 import * as Crypto from 'expo-crypto';
 import { saveUrl, SaveOutcome } from '../api/items';
+import type { LinkMetadata } from '../api/linkMetadata';
 import { logProductEvent } from '../api/analytics';
 import { canonicalUrl, detectContentType, detectPlatform, isValidUrl } from './platform';
 import { enqueueOperation, finishOperation, getCachedItems, markOperation, pendingOperations, remapDownload, updateCachedItem } from './localStore';
@@ -60,7 +61,10 @@ async function queueSave(url: string, userId: string, source: SaveSource): Promi
   }
 }
 
-export async function saveUrlWithOffline(rawUrl: string, options: { userId: string; source: SaveSource }): Promise<SaveWithOfflineOutcome> {
+export async function saveUrlWithOffline(
+  rawUrl: string,
+  options: { userId: string; source: SaveSource; metadata?: LinkMetadata | null },
+): Promise<SaveWithOfflineOutcome> {
   const url = rawUrl.trim();
   if (!isValidUrl(url)) return { ok: false, error: 'invalid-url' };
   try {

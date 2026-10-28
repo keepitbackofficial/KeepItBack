@@ -93,7 +93,7 @@ export default function CollectionDetail() {
       ) : null}
 
       {items.length === 0 ? (
-        <KIBEmptyState emoji="📭" title="Empty collection" message="Add saved links to this collection from any item's Collections action." />
+        <KIBEmptyState icon="inbox" title="Empty collection" message="Add saved links to this collection from any item's Collections action." />
       ) : (
         <FlatList
           data={items}

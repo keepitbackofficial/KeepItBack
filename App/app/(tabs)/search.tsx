@@ -192,13 +192,13 @@ export default function Search() {
       {error ? (
         <View style={{ padding: spacing.xl }}>
           <Text style={{ color: colors.error, marginBottom: spacing.md }}>{error}</Text>
-          <KIBEmptyState emoji="⚠️" title="Search failed" message="The database couldn't complete this search." actionLabel="Try again" onAction={() => void runSearch(query, filters)} />
+          <KIBEmptyState icon="triangle-exclamation" title="Search failed" message="The database couldn't complete this search." actionLabel="Try again" onAction={() => void runSearch(query, filters)} />
         </View>
       ) : hasCriteria && loading ? (
         <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xxl }} />
       ) : hasCriteria && searched && results.length === 0 ? (
         <KIBEmptyState
-          emoji="🔍"
+          icon="magnifying-glass"
           title="No saved items match"
           message={`Nothing in your library matches "${query.trim()}". Saved links never get invented here — check the spelling or save something new.`}
         />
@@ -224,9 +224,9 @@ export default function Search() {
           renderItem={({ item }) => <KIBContentRow item={item} onPress={() => router.push(`/content/${item.id}`)} />}
         />
       ) : !hasCriteria ? (
-        <KIBEmptyState emoji="🔎" title="Find anything you saved" message="Search matches saved titles, notes, creators, tags, categories, collection names, and the original link." />
+        <KIBEmptyState icon="magnifying-glass" title="Find anything you saved" message="Search matches saved titles, notes, creators, tags, categories, collection names, and the original link." />
       ) : (
-        <KIBEmptyState emoji="🔎" title="Find anything you saved" message="Search matches saved titles, notes, creators, tags, categories, collection names, and the original link." />
+        <KIBEmptyState icon="magnifying-glass" title="Find anything you saved" message="Search matches saved titles, notes, creators, tags, categories, collection names, and the original link." />
       )}
     </View>
   );

@@ -1,57 +1,27 @@
-import { useAuth } from '../src/auth/AuthProvider';
-import { useShareIntentContext } from 'expo-share-intent';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 import { KIBText as Text } from '../src/components/KIBText';
 import { KIBButton } from '../src/components/KIBPrimitives';
 import { colors, spacing } from '../src/theme';
-import { isValidUrl } from '../src/lib/platform';
 
-function extractSharedUrl(text: string | null | undefined): string | null {
-  if (!text) return null;
-  const match = text.match(/https?:\/\/[^\s<>"']+/i)?.[0];
-  if (!match) return null;
-  const url = match.replace(/[),.;!?]+$/, '');
-  return isValidUrl(url) ? url : null;
-}
-
+/**
+ * SCREEN — SHARE INTENT EXPLANATION. Shown when a shared item carried no
+ * web link, or its payload could not be read. Purely informational: the
+ * global ShareIntentBridge at the root layout makes all routing decisions
+ * for share intents, so this screen never consumes the share context.
+ */
 export default function ShareIntentScreen() {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
-  const { isReady, hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntentContext();
-  const processed = useRef<string | null>(null);
-  const url = shareIntent.webUrl && isValidUrl(shareIntent.webUrl)
-    ? shareIntent.webUrl
-    : extractSharedUrl(shareIntent.text);
-
-  useEffect(() => {
-    if (!isReady) return;
-
-    if (!hasShareIntent) {
-      router.replace('/');
-      return;
-    }
-    if (!isLoaded || !url || processed.current === url) return;
-
-    processed.current = url;
-    resetShareIntent();
-    if (isSignedIn) {
-      router.replace({ pathname: '/save', params: { url, source: 'share_extension' } });
-    } else {
-      router.replace({ pathname: '/(auth)/sign-in', params: { shareUrl: url } });
-    }
-  }, [hasShareIntent, isLoaded, isReady, isSignedIn, resetShareIntent, router, url]);
+  const { reason: reasonParam } = useLocalSearchParams<{ reason?: string | string[] }>();
+  const reason = Array.isArray(reasonParam) ? reasonParam[0] : reasonParam;
+  const message = reason === 'parse'
+    ? 'Could not read the shared content.'
+    : 'No web link was found in the shared content.';
 
   return (
     <View style={styles.container}>
-      {!isReady || (hasShareIntent && !isLoaded && !!url) ? <ActivityIndicator color={colors.accent} /> : null}
-      <Text style={styles.message}>
-        {error ? `Could not read the shared link: ${error}` : hasShareIntent && !url ? 'No web link was found in the shared content.' : 'Opening shared link…'}
-      </Text>
-      {isReady && hasShareIntent && !url ? (
-        <KIBButton label="Done" variant="secondary" onPress={() => { resetShareIntent(); router.replace('/'); }} />
-      ) : null}
+      <Text style={styles.message}>{message}</Text>
+      <KIBButton label="Done" variant="secondary" onPress={() => router.replace('/')} />
     </View>
   );
 }
