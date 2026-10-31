@@ -34,7 +34,7 @@ export default function CollectionsIndex() {
         <KIBErrorState onRetry={() => void loadCollections()} />
       ) : collections.length === 0 ? (
         <KIBEmptyState
-          emoji="🗂️"
+          icon="folder-open"
           title="No collections yet"
           message="Group saved links together — a collection exists only once you create it, and it holds only what you add."
           actionLabel="Create a collection"

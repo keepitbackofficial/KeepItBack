@@ -92,7 +92,7 @@ export default function Downloads() {
         <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.xs }}>Files stay on this device. Removing a file never deletes its saved link.</Text>
       </View>
       {loading ? <Text style={{ color: colors.textMuted, padding: spacing.xl }}>Loading device files…</Text> : rows.length === 0 ? (
-        <KIBEmptyState emoji="⬇️" title="No downloads yet" message="Direct media links that pass the file and permission checks can be downloaded from their detail page. Social links remain references." />
+        <KIBEmptyState icon="download" title="No downloads yet" message="Direct media links that pass the file and permission checks can be downloaded from their detail page. Social links remain references." />
       ) : (
         <FlatList
           data={rows}

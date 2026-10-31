@@ -1,7 +1,8 @@
 import { Redirect, Tabs, useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
-import { KIBText as Text } from '../../src/components/KIBText';
+import type { ComponentProps } from 'react';
 import { colors, radius } from '../../src/theme';
 
 /** Bottom navigation: Home | Search | + Save | Library | Profile (spec §2). */
@@ -14,7 +15,7 @@ function SaveTabButton() {
       accessibilityLabel="Save a link"
       style={({ pressed }) => [styles.saveFab, { transform: [{ scale: pressed ? 0.92 : 1 }] }]}
     >
-      <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700', marginTop: -2 }}>+</Text>
+      <FontAwesomeFreeSolid name="plus" size={24} color="#fff" />
     </Pressable>
   );
 }
@@ -48,8 +49,8 @@ export default function TabsLayout() {
         tabBarLabelStyle: { fontSize: 10 },
       }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} /> }} />
-      <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: ({ color }) => <TabIcon emoji="🔍" color={color} /> }} />
+      <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: ({ color }) => <TabIcon icon="house" color={color} /> }} />
+      <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: ({ color }) => <TabIcon icon="magnifying-glass" color={color} /> }} />
       {/* Placeholder tab slot: the center + button routes to the /save modal
           directly, so this screen is never displayed. */}
       <Tabs.Screen
@@ -59,17 +60,17 @@ export default function TabsLayout() {
           tabBarButton: () => <SaveTabButton />,
         }}
       />
-      <Tabs.Screen name="library" options={{ title: 'Library', tabBarIcon: ({ color }) => <TabIcon emoji="📚" color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'You', tabBarIcon: ({ color }) => <TabIcon emoji="👤" color={color} /> }} />
+      <Tabs.Screen name="library" options={{ title: 'Library', tabBarIcon: ({ color }) => <TabIcon icon="book" color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'You', tabBarIcon: ({ color }) => <TabIcon icon="user" color={color} /> }} />
     </Tabs>
   );
 }
 
-function TabIcon({ emoji, color }: { emoji: string; color?: string | number | symbol | null }) {
+function TabIcon({ icon, color }: { icon: ComponentProps<typeof FontAwesomeFreeSolid>['name']; color?: string | number | symbol | null }) {
   const active = color === '#FFFFFF' || color === colors.text;
   return (
     <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 18, opacity: active ? 1 : 0.55 }}>{emoji}</Text>
+      <FontAwesomeFreeSolid name={icon} size={20} color={typeof color === 'string' ? color : colors.text} style={{ opacity: active ? 1 : 0.55 }} />
     </View>
   );
 }

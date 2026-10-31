@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { ComponentProps, useEffect, useState } from 'react';
 import { Animated, Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 import { KIBText as Text } from './KIBText';
 import { colors, fontFamily, radius, spacing, type } from '../theme';
 
@@ -187,13 +188,13 @@ export function KIBContentCardSkeleton() {
 }
 
 export function KIBEmptyState({
-  emoji,
+  icon,
   title,
   message,
   actionLabel,
   onAction,
 }: {
-  emoji: string;
+  icon: ComponentProps<typeof FontAwesomeFreeSolid>['name'];
   title: string;
   message: string;
   actionLabel?: string;
@@ -201,9 +202,13 @@ export function KIBEmptyState({
 }) {
   return (
     <View style={styles.empty}>
-      <Text style={{ fontSize: 44, marginBottom: spacing.md }} accessibilityLabel={title}>
-        {emoji}
-      </Text>
+      <FontAwesomeFreeSolid
+        name={icon}
+        size={40}
+        color={colors.accent}
+        style={{ marginBottom: spacing.md }}
+        accessibilityLabel={title}
+      />
       <Text style={[type.h3 as TextStyle, { color: colors.text, textAlign: 'center' }]}>{title}</Text>
       <Text style={[type.secondary as TextStyle, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 260 }]}>
         {message}
@@ -217,7 +222,7 @@ export function KIBEmptyState({
 
 export function KIBErrorState({ onRetry, message }: { onRetry: () => void; message?: string | null }) {
   return (
-    <KIBEmptyState emoji="⚠️" title="Something went wrong" message={message || "We couldn't load your library."} actionLabel="Retry" onAction={onRetry} />
+    <KIBEmptyState icon="triangle-exclamation" title="Something went wrong" message={message || "We couldn't load your library."} actionLabel="Retry" onAction={onRetry} />
   );
 }
 

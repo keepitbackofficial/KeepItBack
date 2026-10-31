@@ -1,5 +1,5 @@
-import { Slot } from 'expo-router';
-import { useEffect } from 'react';
+import { Slot, useRouter } from 'expo-router';
+import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
@@ -17,7 +17,8 @@ import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { setActiveUser } from '../src/lib/authState';
 import { upsertProfile } from '../src/api/profile';
 import { colors } from '../src/theme';
-import { ShareIntentProvider } from 'expo-share-intent';
+import { isValidUrl } from '../src/lib/platform';
+import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import * as Network from 'expo-network';
 import { useLibrary } from '../src/store/useLibrary';
 import { recoverSyncingOperations } from '../src/lib/localStore';
@@ -66,6 +67,75 @@ function AuthBridge() {
   return null;
 }
 
+/**
+ * Extracts the first http(s) URL from shared text (Instagram posts share
+ * caption + URL as plain text on Android).
+ */
+function extractSharedUrl(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const match = text.match(/https?:\/\/[^\s<>"']+/i)?.[0];
+  if (!match) return null;
+  const url = match.replace(/[),.;!?]+$/, '');
+  return isValidUrl(url) ? url : null;
+}
+
+/**
+ * Global share-intent consumer, mounted at the root so a share works from
+ * any screen and on Android cold start (where an ACTION_SEND share never
+ * produces a deep-link path). Signed-in users go straight to Save with the
+ * auto-save flow; signed-out users land on sign-in which continues to Save
+ * afterwards. Resetting the intent happens after navigation, and the guard
+ * only clears when the intent has been consumed, so a re-delivered payload
+ * cannot bounce the user back to home mid-save.
+ */
+function ShareIntentBridge() {
+  const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { isReady, hasShareIntent, shareIntent, resetShareIntent, error } = useShareIntentContext();
+  const handled = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    if (error) {
+      if (handled.current !== 'error') {
+        handled.current = 'error';
+        resetShareIntent();
+        router.replace({ pathname: '/shareintent', params: { reason: 'parse' } });
+      }
+      return;
+    }
+
+    if (!hasShareIntent) {
+      handled.current = null;
+      return;
+    }
+
+    const key = `${shareIntent.webUrl ?? ''}|${shareIntent.text ?? ''}`;
+    if (handled.current === key || !isLoaded) return;
+    handled.current = key;
+
+    const url = shareIntent.webUrl && isValidUrl(shareIntent.webUrl)
+      ? shareIntent.webUrl
+      : extractSharedUrl(shareIntent.text);
+
+    if (!url) {
+      resetShareIntent();
+      router.replace({ pathname: '/shareintent', params: { reason: 'nolink' } });
+      return;
+    }
+
+    if (isSignedIn) {
+      router.replace({ pathname: '/save', params: { url, source: 'share_extension' } });
+    } else {
+      router.replace({ pathname: '/(auth)/sign-in', params: { shareUrl: url } });
+    }
+    resetShareIntent();
+  }, [error, hasShareIntent, isLoaded, isReady, isSignedIn, resetShareIntent, router, shareIntent]);
+
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <ShareIntentProvider>
@@ -99,6 +169,7 @@ function RootContent() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <AuthBridge />
+      <ShareIntentBridge />
       <Slot />
     </SafeAreaProvider>
   );

@@ -7,7 +7,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../src/auth/AuthProvider';
 import { KIBButton } from '../src/components/KIBPrimitives';
 import { KIBPlatformLogo } from '../src/components/KIBPlatformLogo';
-import { saveUrl } from '../src/api/items';
+import { saveUrlWithOffline } from '../src/lib/sync';
 import { fetchLinkMetadata } from '../src/api/linkMetadata';
 import type { LinkMetadata } from '../src/api/linkMetadata';
 import { logProductEvent } from '../src/api/analytics';
@@ -76,7 +76,7 @@ export default function SaveUrl() {
     setBusy(true);
     setError(null);
     const metadata = metadataForUrl === valueToSave ? previewMetadata : await fetchLinkMetadata(valueToSave);
-    const res = await saveUrl(valueToSave, { userId, source, metadata });
+    const res = await saveUrlWithOffline(valueToSave, { userId, source, metadata });
     setBusy(false);
 
     if (!res.ok) {
@@ -86,6 +86,13 @@ export default function SaveUrl() {
         setError(res.dbError);
         return;
       }
+      return;
+    }
+    if ('queued' in res && res.queued) {
+      // Saved on-device while offline; the sync engine pushes it once a
+      // connection returns. The item screen shows its pending state.
+      void useLibrary.getState().loadItems({ force: true });
+      router.replace({ pathname: '/content/[id]', params: { id: res.item.id } });
       return;
     }
     if (res.duplicate) {

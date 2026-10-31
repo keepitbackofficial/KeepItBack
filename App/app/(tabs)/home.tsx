@@ -86,7 +86,7 @@ export default function Home() {
           <SectionHeader title="Recently saved" actionLabel="Open library" onAction={() => router.push('/(tabs)/library')} />
           {error ? <KIBErrorState message={error} onRetry={() => void loadItems({ force: true })} /> : null}
           {isEmpty && !loading ? (
-            <KIBEmptyState emoji="↗" title="Your archive starts with a link" message="Share or paste a link to save it for later. It will appear here as soon as it is synced." actionLabel="Save a link" onAction={() => router.push('/save')} />
+            <KIBEmptyState icon="link" title="Your archive starts with a link" message="Share or paste a link to save it for later. It will appear here as soon as it is synced." actionLabel="Save a link" onAction={() => router.push('/save')} />
           ) : null}
         </View>
       }
