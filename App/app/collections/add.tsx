@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, LayoutAnimation, StyleSheet, View } from 'react-native';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { fetchCollectionWithItems, addCollectionItem } from '../../src/api/colle
 import { KIBContentRow } from '../../src/components/KIBContent';
 import { KIBButton } from '../../src/components/KIBPrimitives';
 import { useLibrary } from '../../src/store/useLibrary';
+import { KIBKip } from '../../src/components/KIBKip';
 import { colors, spacing, type } from '../../src/theme';
 import { safeBack } from '../../src/lib/navigation';
 
@@ -34,14 +35,18 @@ export default function AddToCollection() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
       <View style={{ paddingHorizontal: spacing.xl }}>
-        <Text style={[type.h3 as any, { color: colors.text }]}>Add your saved links</Text>
+        <View style={{ paddingRight: 56 }}>
+          <Text style={[type.title, { color: colors.text }]}>Add your saved links</Text>
+          <KIBKip size={36} style={{ position: 'absolute', right: 2, top: -4 }} />
+        </View>
         <Text style={{ color: colors.textSecondary, marginTop: spacing.xs }}>Only links saved to your own library can be added.</Text>
       </View>
       {available.length || hasMore ? (
         <FlatList
           data={available}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm }}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xl }}
+          showsVerticalScrollIndicator={false}
           onEndReached={() => {
             if (counts?.all && items.length < counts.all) void loadItems({ loadMore: true });
           }}
@@ -51,13 +56,16 @@ export default function AddToCollection() {
           renderItem={({ item }) => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <View style={{ flex: 1 }}><KIBContentRow item={item} onPress={() => router.push(`/content/${item.id}`)} /></View>
-              <KIBButton label={busyId === item.id ? 'Adding…' : 'Add'} disabled={busyId !== null} onPress={async () => {
+              <KIBButton label={busyId === item.id ? 'Adding…' : 'Add'} faIcon={busyId === item.id ? undefined : 'plus'} style={{ height: 36, paddingHorizontal: 14, marginBottom: spacing.sm }} disabled={busyId !== null} onPress={async () => {
                 if (!collectionId) return;
                 setBusyId(item.id);
                 const result = await addCollectionItem(collectionId, item.id);
                 setBusyId(null);
                 if (result.error) Alert.alert('Could not add link', result.error);
-                else setIncluded((current) => [...current, item.id]);
+                else {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setIncluded((current) => [...current, item.id]);
+                }
               }} />
             </View>
           )}
@@ -67,7 +75,7 @@ export default function AddToCollection() {
           <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>No saved links are available to add. New links you save will appear here.</Text>
         </View>
       )}
-      <KIBButton label="Done" variant="ghost" onPress={() => safeBack(router, collectionId ? `/collections/${collectionId}` : '/collections')} style={{ margin: spacing.xl }} />
+      <KIBButton label="Done" faIcon="check" variant="ghost" onPress={() => safeBack(router, collectionId ? `/collections/${collectionId}` : '/collections')} style={{ margin: spacing.xl }} />
     </View>
   );
 }

@@ -5,7 +5,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { acceptCollectionInvite } from '../../src/api/collections';
 import { KIBButton } from '../../src/components/KIBPrimitives';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { KIBKipScene } from '../../src/components/KIBKip';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, fontFamily, spacing, type } from '../../src/theme';
 import { safeBack } from '../../src/lib/navigation';
 
 export default function JoinCollection() {
@@ -18,8 +20,11 @@ export default function JoinCollection() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl }]}>
-      <Text style={[type.h1 as any, { color: colors.text }]}>Join a collection</Text>
-      <Text style={{ color: colors.textSecondary, marginTop: spacing.sm }}>Use the one-time code shared by the collection owner. Invite codes expire after seven days.</Text>
+      <View style={{ alignItems: 'center' }}>
+        <KIBKipScene size={170} disc={colors.rose} badge={<FontAwesomeFreeSolid name="key" size={16} color={colors.text} />} />
+      </View>
+      <Text style={[type.h1, { color: colors.text, marginTop: spacing.md }]}>Join a collection</Text>
+      <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 21 }}>Use the one-time code shared by the collection owner. Invite codes expire after seven days.</Text>
       <TextInput
         value={activeCode}
         onChangeText={(value) => setCode(value.toUpperCase().replace(/\s/g, ''))}
@@ -32,7 +37,7 @@ export default function JoinCollection() {
         style={styles.input}
       />
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-        <KIBButton label={busy ? 'Joining…' : 'Join collection'} disabled={busy || activeCode.length !== 16} onPress={async () => {
+        <KIBButton label={busy ? 'Joining…' : 'Join collection'} style={{ height: 54 }} disabled={busy || activeCode.length !== 16} onPress={async () => {
           setBusy(true);
           const result = await acceptCollectionInvite(activeCode);
           setBusy(false);
@@ -50,5 +55,5 @@ export default function JoinCollection() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl },
-  input: { marginTop: spacing.xl, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surface, color: colors.text, fontSize: 18, letterSpacing: 3 },
+  input: { marginTop: spacing.xl, height: 64, borderWidth: 1.5, borderColor: colors.text, borderRadius: 20, paddingHorizontal: spacing.md, backgroundColor: colors.surface, color: colors.text, fontSize: 19, letterSpacing: 3, textAlign: 'center', fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
 });

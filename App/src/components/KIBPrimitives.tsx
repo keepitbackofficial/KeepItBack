@@ -2,7 +2,10 @@ import React, { ComponentProps, useEffect, useState } from 'react';
 import { Animated, Pressable, PressableProps, StyleProp, StyleSheet, TextStyle, View, ViewStyle } from 'react-native';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 import { KIBText as Text } from './KIBText';
+import { KIBKipScene } from './KIBKip';
 import { colors, fontFamily, radius, spacing, type } from '../theme';
+
+type IconName = ComponentProps<typeof FontAwesomeFreeSolid>['name'];
 
 /** Reusable KIB components — spec §53. */
 
@@ -68,6 +71,7 @@ export function KIBButton({
   onPress,
   variant = 'primary',
   icon,
+  faIcon,
   disabled,
   style,
 }: {
@@ -75,6 +79,7 @@ export function KIBButton({
   onPress?: () => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   icon?: string;
+  faIcon?: IconName;
   disabled?: boolean;
   style?: ViewStyle;
 }) {
@@ -82,12 +87,12 @@ export function KIBButton({
     variant === 'primary'
       ? colors.accent
       : variant === 'danger'
-        ? colors.error
+        ? colors.errorTint
         : variant === 'secondary'
-          ? colors.surface2
+          ? colors.surface
           : 'transparent';
-  const fg = variant === 'primary' ? '#fff' : variant === 'danger' ? '#fff' : colors.text;
-  const border = variant === 'ghost' || variant === 'secondary' ? colors.border : 'transparent';
+  const fg = variant === 'primary' ? colors.paper : variant === 'danger' ? colors.error : variant === 'ghost' ? colors.textSecondary : colors.text;
+  const border = variant === 'secondary' ? colors.border : 'transparent';
   return (
     <KIBMotionPressable
       onPress={onPress}
@@ -101,7 +106,8 @@ export function KIBButton({
       ]}
     >
       {icon ? <Text style={{ fontSize: 16, marginRight: 6 }}>{icon}</Text> : null}
-      <Text style={{ color: fg, fontSize: 14, fontFamily: fontFamily.bodyMedium, fontWeight: '600' }}>{label}</Text>
+      {faIcon ? <FontAwesomeFreeSolid name={faIcon} size={15} color={fg} style={{ marginRight: 8 }} /> : null}
+      <Text style={{ color: fg, fontSize: 15, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{label}</Text>
     </KIBMotionPressable>
   );
 }
@@ -121,8 +127,13 @@ export function KIBIconButton({ icon, onPress, label, style }: { icon: string; o
 }
 
 export function KIBTag({ label, onRemove, small }: { label: string; onRemove?: () => void; small?: boolean }) {
+  // Tags spring in when they first appear, e.g. right after saving new ones.
+  const [pop] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.spring(pop, { toValue: 1, stiffness: 260, damping: 14, mass: 0.7, useNativeDriver: true }).start();
+  }, [pop]);
   return (
-    <View style={[styles.tag, small && { paddingVertical: 2, paddingHorizontal: 8 }]}>
+    <Animated.View style={[styles.tag, small && { paddingVertical: 2, paddingHorizontal: 8 }, { transform: [{ scale: pop }] }]}>
       <Text style={[styles.tagText, small && { fontSize: 11 }]} numberOfLines={1}>
         {label}
       </Text>
@@ -131,7 +142,7 @@ export function KIBTag({ label, onRemove, small }: { label: string; onRemove?: (
           <Text style={[styles.tagText, { marginLeft: 4, color: colors.textMuted }]}>×</Text>
         </Pressable>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -144,7 +155,7 @@ export function KIBFilterChip({ label, active, onPress, icon }: { label: string;
       style={[styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }]}
     >
       {icon ? <Text style={{ fontSize: 13, marginRight: 4 }}>{icon}</Text> : null}
-      <Text style={[styles.chipText, active && { color: '#fff' }]}>{label}</Text>
+      <Text style={[styles.chipText, active && { color: colors.paper }]}>{label}</Text>
     </KIBMotionPressable>
   );
 }
@@ -163,12 +174,12 @@ export function KIBAvatar({ name, size = 40 }: { name: string; size?: number }) 
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: colors.accent,
+        backgroundColor: colors.sky,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Text style={{ color: '#fff', fontFamily: fontFamily.bodyStrong, fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
+      <Text style={{ color: colors.text, fontFamily: fontFamily.bodyStrong, fontWeight: '700', fontSize: size * 0.38 }}>{initials}</Text>
     </View>
   );
 }
@@ -202,19 +213,20 @@ export function KIBEmptyState({
 }) {
   return (
     <View style={styles.empty}>
-      <FontAwesomeFreeSolid
-        name={icon}
-        size={40}
-        color={colors.accent}
-        style={{ marginBottom: spacing.md }}
-        accessibilityLabel={title}
-      />
+      <View accessible accessibilityLabel={title} style={{ marginBottom: spacing.sm }}>
+        <KIBKipScene
+          size={160}
+          disc={icon === 'triangle-exclamation' || (icon === 'magnifying-glass' && title !== 'Find anything you saved') ? colors.rose : colors.sky}
+          mood={icon === 'triangle-exclamation' ? 'worried' : 'calm'}
+          badge={<FontAwesomeFreeSolid name={icon} size={16} color={colors.text} />}
+        />
+      </View>
       <Text style={[type.h3 as TextStyle, { color: colors.text, textAlign: 'center' }]}>{title}</Text>
-      <Text style={[type.secondary as TextStyle, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 260 }]}>
+      <Text style={[type.secondary as TextStyle, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 290 }]}>
         {message}
       </Text>
       {actionLabel && onAction ? (
-        <KIBButton label={actionLabel} onPress={onAction} style={{ marginTop: spacing.xl }} />
+        <KIBButton label={actionLabel} onPress={onAction} style={{ marginTop: spacing.xl, paddingHorizontal: spacing.xxl }} />
       ) : null}
     </View>
   );
@@ -251,6 +263,61 @@ export function ScreenHeader({
   );
 }
 
+/** Paper card that groups list rows, as on the settings screens. */
+export function KIBGroup({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const rows = React.Children.toArray(children).filter(Boolean);
+  return (
+    <View style={[styles.group, style]}>
+      {rows.map((child, i) => (
+        <View key={i} style={i < rows.length - 1 ? styles.groupDivider : undefined}>{child}</View>
+      ))}
+    </View>
+  );
+}
+
+/** One row inside a KIBGroup: icon tile, label, then a chevron or a status pill. */
+export function KIBListRow({
+  label,
+  icon,
+  leading,
+  value,
+  tone = 'muted',
+  onPress,
+  danger,
+  chevron = Boolean(onPress) && !value,
+}: {
+  label: string;
+  icon?: IconName;
+  leading?: React.ReactNode;
+  value?: string;
+  tone?: 'ok' | 'muted' | 'error';
+  onPress?: () => void;
+  danger?: boolean;
+  chevron?: boolean;
+}) {
+  const content = (
+    <>
+      <View style={[styles.rowIcon, danger && { backgroundColor: colors.errorTint }]}>
+        {leading ?? (icon ? <FontAwesomeFreeSolid name={icon} size={15} color={danger ? colors.error : colors.text} /> : null)}
+      </View>
+      <Text style={[styles.rowLabel, danger && { color: colors.error }]} numberOfLines={2}>{label}</Text>
+      {value ? (
+        <View style={[styles.pill, tone === 'ok' ? { backgroundColor: colors.successTint } : tone === 'error' ? { backgroundColor: colors.errorTint } : null]}>
+          {tone !== 'muted' ? <View style={[styles.pillDot, { backgroundColor: tone === 'ok' ? colors.success : colors.error }]} /> : null}
+          <Text style={[styles.pillText, { color: tone === 'ok' ? colors.success : tone === 'error' ? colors.error : colors.textMuted }]}>{value}</Text>
+        </View>
+      ) : null}
+      {chevron ? <FontAwesomeFreeSolid name="chevron-right" size={13} color={colors.textMuted} /> : null}
+    </>
+  );
+  if (!onPress) return <View style={styles.listRow}>{content}</View>;
+  return (
+    <KIBMotionPressable onPress={onPress} accessibilityRole="button" accessibilityLabel={value ? `${label}, ${value}` : label} style={styles.listRow}>
+      {content}
+    </KIBMotionPressable>
+  );
+}
+
 export function SectionHeader({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -266,8 +333,8 @@ export function SectionHeader({ title, actionLabel, onAction }: { title: string;
 
 const styles = StyleSheet.create({
   button: {
-    height: 50,
-    borderRadius: radius.md,
+    height: 52,
+    borderRadius: radius.pill,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -284,14 +351,12 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface2,
-    borderColor: colors.border,
-    borderWidth: 1,
+    backgroundColor: colors.rose,
     borderRadius: radius.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  tagText: { color: colors.textSecondary, fontSize: 12 },
+  tagText: { color: colors.text, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,10 +364,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.pill,
-    paddingVertical: 7,
+    height: 36,
     paddingHorizontal: 14,
   },
-  chipText: { color: colors.textSecondary, fontSize: 13 },
+  chipText: { color: colors.textSecondary, fontSize: 13, fontFamily: fontFamily.bodyMedium, fontWeight: '600' },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -311,6 +376,21 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   empty: { alignItems: 'center', justifyContent: 'center', padding: spacing.xxl, flex: 1 },
+  group: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 2,
+  },
+  groupDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 58, paddingVertical: 8 },
+  rowIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  rowLabel: { flex: 1, color: colors.text, fontSize: 15, fontFamily: fontFamily.bodyMedium, fontWeight: '600' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 26, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: 'rgba(28,23,24,0.06)' },
+  pillDot: { width: 6, height: 6, borderRadius: 3 },
+  pillText: { fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

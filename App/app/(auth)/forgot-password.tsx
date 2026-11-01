@@ -5,8 +5,9 @@ import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'rea
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
 import { getSupabase } from '../../src/lib/supabase';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { colors, spacing, type } from '../../src/theme';
 
 export default function ForgotPassword() {
   const insets = useSafeAreaInsets();
@@ -34,7 +35,8 @@ export default function ForgotPassword() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}>
       <View style={{ flex: 1, justifyContent: 'center', gap: spacing.md }}>
-        <Text style={[type.h1 as any, { color: colors.text, textAlign: 'center' }]}>Reset password</Text>
+        <KIBAuthHero icon="key" />
+        <Text style={[type.h1, { color: colors.text, textAlign: 'center' }]}>Reset password</Text>
         <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>We&apos;ll email you a link to choose a new password.</Text>
         <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" autoComplete="email" accessibilityLabel="Email" style={styles.input} />
         <KIBButton label={busy ? 'Sending…' : 'Send reset link'} onPress={() => void sendRecovery()} disabled={busy} />
@@ -48,8 +50,8 @@ export default function ForgotPassword() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  input: { height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 15 },
-  link: { color: colors.accent, textAlign: 'center' },
+  input: authStyles.input,
+  link: { ...authStyles.link, textAlign: 'center' },
   successText: { color: colors.success, textAlign: 'center', fontSize: 13 },
   errorText: { color: colors.error, textAlign: 'center', fontSize: 13 },
 });

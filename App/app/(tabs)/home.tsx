@@ -8,7 +8,9 @@ import { KIBPlatformChip } from '../../src/components/KIBPlatformLogo';
 import { KIBAvatar, KIBButton, KIBEmptyState, KIBErrorState, SectionHeader } from '../../src/components/KIBPrimitives';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useLibrary } from '../../src/store/useLibrary';
-import { colors, fontFamily, radius, spacing, type } from '../../src/theme';
+import { KIBKip } from '../../src/components/KIBKip';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, fontFamily, radius, spacing, TAB_BAR_CLEARANCE, type } from '../../src/theme';
 import { PLATFORM_FILTERS, PlatformFilter, SavedItem } from '../../src/types';
 
 export default function Home() {
@@ -28,34 +30,38 @@ export default function Home() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + 28 }}
+      contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + TAB_BAR_CLEARANCE }}
+      showsVerticalScrollIndicator={false}
       data={items}
       keyExtractor={(item) => item.id}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void loadItems({ force: true })} tintColor={colors.accent} />}
       ListHeaderComponent={
         <View style={{ gap: spacing.lg }}>
           <View style={styles.brandHeader}>
-            <View>
-              <Text style={[type.h1, { fontSize: 28, lineHeight: 34 }]}>KeepItBack</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 11, letterSpacing: 0.5 }}>SAVE ANYTHING. FIND EVERYTHING.</Text>
+            <Text style={styles.wordmark}>keepit<Text style={[styles.wordmark, { fontFamily: fontFamily.displayStrong }]}>back</Text></Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <KIBButton label="Save" faIcon="plus" onPress={() => router.push('/save')} style={{ height: 38, paddingHorizontal: 14 }} />
+              <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push('/(tabs)/profile')}>
+                <KIBAvatar name={user?.fullName || user?.firstName || 'Account'} size={40} />
+              </Pressable>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push('/(tabs)/profile')}>
-              <KIBAvatar name={user?.fullName || user?.firstName || 'Account'} size={42} />
-            </Pressable>
           </View>
 
-          <View style={styles.archiveMeta}>
-            <View>
-              <Text style={{ color: colors.accent, fontFamily: fontFamily.bodyMedium, fontSize: 11, letterSpacing: 1.2 }}>YOUR PRIVATE ARCHIVE</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 3 }}>{counts ? `${counts.all} saved item${counts.all === 1 ? '' : 's'}` : 'Loading your archive…'}</Text>
+          <View style={{ paddingRight: 64 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={[styles.dot, { backgroundColor: loading ? colors.warning : colors.success }]} />
+              <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fontFamily.bodyMedium }}>
+                {counts ? `${counts.all} saved item${counts.all === 1 ? '' : 's'}` : 'Loading your archive…'} · {loading ? 'Syncing…' : 'Cloud library'}
+              </Text>
             </View>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{loading ? 'Syncing…' : 'Cloud library'}</Text>
+            <Text style={[type.title, { marginTop: 8 }]}>Good to have you back, {firstName}</Text>
+            <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 14 }}>Your saved ideas, gathered in one place.</Text>
+            <KIBKip size={46} style={{ position: 'absolute', right: 4, bottom: -30 }} />
           </View>
 
           <Pressable accessibilityRole="button" accessibilityLabel="Search your archive" onPress={() => router.push('/(tabs)/search')} style={styles.searchShortcut}>
-            <Text style={{ color: colors.textMuted, fontSize: 17 }}>⌕</Text>
-            <Text style={{ color: colors.textMuted, flex: 1 }}>Search your archive, tags, or domains…</Text>
-            <Text style={{ color: colors.accent, fontSize: 18 }}>⌘</Text>
+            <FontAwesomeFreeSolid name="magnifying-glass" size={16} color={colors.text} />
+            <Text style={{ color: colors.textMuted, flex: 1 }} numberOfLines={1}>Search your archive, tags, or domains…</Text>
           </Pressable>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: 2 }}>
@@ -63,14 +69,6 @@ export default function Home() {
               <KIBPlatformChip key={filter} platform={filter} count={counts ? (filter === 'All' ? counts.all : counts[filter] ?? 0) : undefined} active={platform === filter} onPress={() => setPlatform(filter as PlatformFilter)} />
             ))}
           </ScrollView>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs }}>
-            <View style={{ flex: 1, paddingRight: spacing.md }}>
-              <Text style={[type.h2, { fontSize: 24 }]}>Good to have you back, {firstName}</Text>
-              <Text style={{ color: colors.textSecondary, marginTop: 3 }}>Your saved ideas, gathered in one place.</Text>
-            </View>
-            <KIBButton label="+ Save" onPress={() => router.push('/save')} style={{ height: 44, paddingHorizontal: 14 }} />
-          </View>
 
           {collections.length ? (
             <View>
@@ -97,8 +95,9 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.lg },
-  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  archiveMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.pill },
-  searchShortcut: { height: 50, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md },
+  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl },
+  brandHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 },
+  wordmark: { fontFamily: fontFamily.display, fontSize: 24, color: colors.text, letterSpacing: -0.3 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  searchShortcut: { height: 54, flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 18, zIndex: 1 },
 });

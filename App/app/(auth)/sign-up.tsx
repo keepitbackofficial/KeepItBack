@@ -5,8 +5,9 @@ import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View }
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
 import { getSupabase } from '../../src/lib/supabase';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { colors, spacing, type } from '../../src/theme';
 
 export default function SignUp() {
   const router = useRouter();
@@ -89,8 +90,9 @@ export default function SignUp() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}>
       <Animated.View style={{ flex: 1, justifyContent: 'center', opacity: screenOpacity, transform: [{ translateY: screenOffset }] }}>
-        <Text style={[type.h1 as any, { color: colors.text, textAlign: 'center' }]}>{verificationSent ? 'Verify your email' : 'Create account'}</Text>
-        <Text style={[type.body as any, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
+        <KIBAuthHero icon={verificationSent ? 'envelope' : 'user-plus'} disc={verificationSent ? colors.sky : colors.rose} size={150} />
+        <Text style={[type.h1, { color: colors.text, textAlign: 'center' }]}>{verificationSent ? 'Verify your email' : 'Create account'}</Text>
+        <Text style={[type.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>
           {verificationSent ? `Enter the code sent to ${email}, or open the confirmation link on this device.` : 'A few details and your library is yours.'}
         </Text>
 
@@ -109,14 +111,14 @@ export default function SignUp() {
           {notice ? <Text style={styles.noticeText} accessibilityLiveRegion="polite">{notice}</Text> : null}
         </View>
       </Animated.View>
-      <Text style={{ color: colors.textMuted, textAlign: 'center' }}>Already have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-in', params: { shareUrl } } : '/(auth)/sign-in'} style={{ color: colors.accentSoft }}>Sign in</Link></Text>
+      <Text style={authStyles.foot}>Already have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-in', params: { shareUrl } } : '/(auth)/sign-in'} style={authStyles.link}>Sign in</Link></Text>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  input: { height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 15 },
+  input: authStyles.input,
   errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },
   noticeText: { color: colors.success, fontSize: 13, textAlign: 'center' },
 });

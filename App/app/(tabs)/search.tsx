@@ -12,7 +12,8 @@ import { KIBEmptyState, KIBFilterChip } from '../../src/components/KIBPrimitives
 import { CONTENT_TYPE_FILTERS, DEFAULT_CATEGORIES, PLATFORM_FILTERS, PlatformFilter, SavedItem, SearchFilters } from '../../src/types';
 import { getCachedItems, getPendingLocalItems, getRecentSearches, rememberSearch } from '../../src/lib/localStore';
 import { listDownloads } from '../../src/lib/downloads';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, fontFamily, radius, spacing, TAB_BAR_CLEARANCE, type } from '../../src/theme';
 
 const PAGE = 24;
 
@@ -140,8 +141,9 @@ export default function Search() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
-      <Text style={[type.h3 as any, { color: colors.text, paddingHorizontal: spacing.xl }]}>Search your library</Text>
-      <View style={[styles.inputWrap, { marginHorizontal: spacing.xl, marginTop: spacing.md }]}>
+      <Text style={[type.title, { color: colors.text, paddingHorizontal: spacing.xl }]}>Search your library</Text>
+      <View style={[styles.inputWrap, { marginHorizontal: spacing.xl, marginTop: spacing.lg }]}>
+        <FontAwesomeFreeSolid name="magnifying-glass" size={16} color={colors.text} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -152,8 +154,8 @@ export default function Search() {
           style={styles.input}
         />
         {hasQuery ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
-            <Text style={{ color: colors.textMuted, fontSize: 18 }}>×</Text>
+          <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search" style={styles.clear}>
+            <FontAwesomeFreeSolid name="xmark" size={12} color={colors.text} />
           </Pressable>
         ) : null}
       </View>
@@ -166,15 +168,15 @@ export default function Search() {
         {filters.category !== 'All' ? <KIBFilterChip label={filters.category ?? 'All'} active onPress={() => setFilters((f) => ({ ...f, category: 'All' }))} /> : null}
       </View>
       {showFilters ? (
-        <ScrollView style={{ maxHeight: 195, marginTop: spacing.xs }} contentContainerStyle={{ paddingHorizontal: spacing.xl, gap: spacing.sm, paddingBottom: spacing.sm }}>
+        <ScrollView style={styles.panel} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: spacing.lg, gap: spacing.sm }}>
           <Text style={styles.filterLabel}>Platform</Text>
-          <View style={styles.filterRow}>{PLATFORM_FILTERS.map((f: PlatformFilter) => <KIBPlatformChip key={f} platform={f} active={filters.platform === f} onPress={() => setFilters((current) => ({ ...current, platform: f }))} />)}</View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipLine}>{PLATFORM_FILTERS.map((f: PlatformFilter) => <KIBPlatformChip key={f} platform={f} active={filters.platform === f} onPress={() => setFilters((current) => ({ ...current, platform: f }))} />)}</ScrollView>
           <Text style={styles.filterLabel}>Content type</Text>
-          <View style={styles.filterRow}>{CONTENT_TYPE_FILTERS.map((value) => <KIBFilterChip key={value} label={value} active={filters.contentType === value} onPress={() => setFilters((current) => ({ ...current, contentType: value }))} />)}</View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipLine}>{CONTENT_TYPE_FILTERS.map((value) => <KIBFilterChip key={value} label={value} active={filters.contentType === value} onPress={() => setFilters((current) => ({ ...current, contentType: value }))} />)}</ScrollView>
           <Text style={styles.filterLabel}>Category</Text>
-          <View style={styles.filterRow}>{['All', ...categories].map((value) => <KIBFilterChip key={value} label={value} active={filters.category === value} onPress={() => setFilters((current) => ({ ...current, category: value }))} />)}</View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipLine}>{['All', ...categories].map((value) => <KIBFilterChip key={value} label={value} active={filters.category === value} onPress={() => setFilters((current) => ({ ...current, category: value }))} />)}</ScrollView>
           <Text style={styles.filterLabel}>Saved date</Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg }}>
             <TextInput value={filters.dateFrom ?? ''} onChangeText={(dateFrom) => setFilters((current) => ({ ...current, dateFrom: dateFrom || undefined }))} placeholder="From · YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={styles.dateInput} />
             <TextInput value={filters.dateTo ?? ''} onChangeText={(dateTo) => setFilters((current) => ({ ...current, dateTo: dateTo || undefined }))} placeholder="To · YYYY-MM-DD" placeholderTextColor={colors.textMuted} style={styles.dateInput} />
           </View>
@@ -183,7 +185,7 @@ export default function Search() {
 
       {!hasQuery && recent.length ? (
         <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.md }}>
-          <Text style={[type.label as any, { color: colors.textSecondary, marginBottom: spacing.sm }]}>Recent searches</Text>
+          <Text style={[type.overline, { color: colors.textMuted, marginBottom: spacing.xs }]}>Recent searches</Text>
           <View style={styles.filterRow}>{recent.map((term) => <KIBFilterChip key={term} label={term} onPress={() => setQuery(term)} />)}</View>
         </View>
       ) : null}
@@ -206,11 +208,12 @@ export default function Search() {
         <FlatList
           data={results}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 40, gap: spacing.md }}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }}
+          showsVerticalScrollIndicator={false}
           onEndReached={loadMore}
           onEndReachedThreshold={0.4}
           ListHeaderComponent={
-            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.md }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontFamily: fontFamily.bodyMedium, marginTop: spacing.md, marginBottom: spacing.sm }}>
               {total} match{total === 1 ? '' : 'es'}
             </Text>
           }
@@ -239,13 +242,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    borderWidth: 1.5,
+    borderRadius: radius.pill,
+    paddingHorizontal: 18,
     gap: spacing.md,
   },
-  input: { flex: 1, height: 48, color: colors.text, fontSize: 15 },
+  input: { flex: 1, height: 52, color: colors.text, fontSize: 15, fontFamily: fontFamily.body },
+  clear: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(28,23,24,0.08)', alignItems: 'center', justifyContent: 'center' },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md, paddingBottom: spacing.sm },
-  filterLabel: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
-  dateInput: { flex: 1, height: 42, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, color: colors.text, paddingHorizontal: spacing.sm, fontSize: 12 },
+  panel: { maxHeight: 300, marginTop: spacing.xs, marginHorizontal: spacing.xl, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
+  chipLine: { gap: spacing.sm, paddingHorizontal: spacing.lg },
+  filterLabel: { ...type.overline, color: colors.textMuted, paddingHorizontal: spacing.lg, marginTop: spacing.xs },
+  dateInput: { flex: 1, height: 42, borderRadius: 14, backgroundColor: colors.bg, color: colors.text, paddingHorizontal: spacing.md, fontSize: 12 },
 });
