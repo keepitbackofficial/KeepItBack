@@ -11,7 +11,8 @@ import { deleteDownloadedMedia, listDownloads } from '../../src/lib/downloads';
 import { getCachedItems, getPendingLocalItems } from '../../src/lib/localStore';
 import { KIBButton, KIBEmptyState } from '../../src/components/KIBPrimitives';
 import { SavedItem } from '../../src/types';
-import { colors, spacing, type } from '../../src/theme';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, fontFamily, radius, spacing, type } from '../../src/theme';
 import { safeBack } from '../../src/lib/navigation';
 
 type DownloadRow = { itemId: string; uri: string; size: number; title: string; item?: SavedItem };
@@ -86,10 +87,10 @@ export default function Downloads() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
-      <View style={{ paddingHorizontal: spacing.xl }}>
-        <Text style={[type.h2 as any, { color: colors.text }]}>Downloads & storage</Text>
-        <Text style={{ color: colors.textSecondary, marginTop: spacing.xs }}>{rows.length} device file{rows.length === 1 ? '' : 's'} · {formatSize(totalSize)}</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.xs }}>Files stay on this device. Removing a file never deletes its saved link.</Text>
+      <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
+        <Text style={[type.title, { color: colors.text }]}>Downloads & storage</Text>
+        <Text style={{ color: colors.text, marginTop: spacing.xs, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{rows.length} device file{rows.length === 1 ? '' : 's'} · {formatSize(totalSize)}</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 18, marginTop: spacing.xs }}>Files stay on this device. Removing a file never deletes its saved link.</Text>
       </View>
       {loading ? <Text style={{ color: colors.textMuted, padding: spacing.xl }}>Loading device files…</Text> : rows.length === 0 ? (
         <KIBEmptyState icon="download" title="No downloads yet" message="Direct media links that pass the file and permission checks can be downloaded from their detail page. Social links remain references." />
@@ -100,12 +101,13 @@ export default function Downloads() {
           contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xl }}
           renderItem={({ item }) => (
             <View style={styles.row}>
+              <View style={styles.fileTile}><FontAwesomeFreeSolid name="download" size={16} color={colors.text} /></View>
               <Pressable style={{ flex: 1 }} onPress={() => item.item && router.push(`/content/${item.item.id}`)} accessibilityRole="button">
-                <Text style={[type.label as any, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
+                <Text style={[type.label, { color: colors.text, fontSize: 14 }]} numberOfLines={2}>{item.title}</Text>
                 <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>{formatSize(item.size)} · stored only on this device</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel={`Open ${item.title}`} onPress={() => void new File(item.uri).preview({ title: item.title }).catch(() => Alert.alert('File unavailable', 'This download is no longer available.'))} style={styles.action}>
-                <Text style={{ color: colors.accent, fontSize: 16 }}>Open</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Open ${item.title}`} onPress={() => void new File(item.uri).preview({ title: item.title }).catch(() => Alert.alert('File unavailable', 'This download is no longer available.'))} style={styles.openPill}>
+                <Text style={{ color: colors.text, fontSize: 13, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>Open</Text>
               </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => Alert.alert('Remove device file?', 'The saved link will remain in your library.', [
                 { text: 'Cancel', style: 'cancel' },
@@ -113,15 +115,15 @@ export default function Downloads() {
                   if (userId) { await deleteDownloadedMedia(userId, item.itemId); void logProductEvent(userId, 'download_deleted'); }
                   await reload();
                 } },
-              ])} style={styles.action}>
-                <Text style={{ color: colors.error, fontSize: 16 }}>×</Text>
+              ])} style={styles.removeDot}>
+                <FontAwesomeFreeSolid name="xmark" size={13} color={colors.error} />
               </Pressable>
             </View>
           )}
         />
       )}
-      {rows.length ? <KIBButton label="Remove all downloads" variant="secondary" onPress={clearAll} style={{ marginHorizontal: spacing.xl }} /> : null}
-      <KIBButton label="Back" variant="ghost" onPress={() => safeBack(router, '/settings')} style={{ margin: spacing.xl }} />
+      {rows.length ? <KIBButton label="Remove all downloads" faIcon="trash-can" variant="secondary" onPress={clearAll} style={{ marginHorizontal: spacing.xl }} /> : null}
+      <KIBButton label="Back" faIcon="chevron-left" variant="ghost" onPress={() => safeBack(router, '/settings')} style={{ margin: spacing.xl, marginTop: spacing.sm }} />
     </View>
   );
 }
@@ -133,6 +135,8 @@ function formatSize(size: number) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: spacing.md },
-  action: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm },
+  fileTile: { width: 46, height: 46, borderRadius: 15, backgroundColor: colors.sky, alignItems: 'center', justifyContent: 'center' },
+  openPill: { height: 32, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  removeDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.errorTint, alignItems: 'center', justifyContent: 'center' },
 });

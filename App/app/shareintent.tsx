@@ -2,7 +2,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { KIBText as Text } from '../src/components/KIBText';
 import { KIBButton } from '../src/components/KIBPrimitives';
-import { colors, spacing } from '../src/theme';
+import { KIBKipScene } from '../src/components/KIBKip';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, spacing, type } from '../src/theme';
 
 /**
  * SCREEN — SHARE INTENT EXPLANATION. Shown when a shared item carried no
@@ -20,13 +22,14 @@ export default function ShareIntentScreen() {
 
   return (
     <View style={styles.container}>
+      <KIBKipScene size={200} disc={colors.rose} badge={<FontAwesomeFreeSolid name="question" size={16} color={colors.text} />} />
       <Text style={styles.message}>{message}</Text>
-      <KIBButton label="Done" variant="secondary" onPress={() => router.replace('/')} />
+      <KIBButton label="Done" variant="secondary" onPress={() => router.replace('/')} style={{ minWidth: 160 }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  message: { color: colors.textSecondary, textAlign: 'center' },
+  message: { ...type.h3, color: colors.text, textAlign: 'center', maxWidth: 300, marginTop: spacing.sm },
 });

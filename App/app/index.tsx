@@ -2,6 +2,7 @@ import { useAuth } from '../src/auth/AuthProvider';
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { KIBText as Text } from '../src/components/KIBText';
+import { KIBKipScene } from '../src/components/KIBKip';
 import { colors, spacing, type } from '../src/theme';
 
 /**
@@ -14,8 +15,9 @@ export default function Splash() {
   if (!isLoaded) {
     return (
       <View style={styles.container}>
-        <Text style={[type.display as any, { color: colors.text, letterSpacing: 1 }]}>KEEPITBACK</Text>
-        <Text style={[type.secondary as any, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+        <KIBKipScene size={200} />
+        <Text style={[type.display, { color: colors.text, letterSpacing: 1, marginTop: spacing.lg }]}>KEEPITBACK</Text>
+        <Text style={[type.secondary, { color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' }]}>
           Save anything.{'\n'}Find everything.
         </Text>
         <View style={{ marginTop: spacing.xxl }}>

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isSupabaseConfigured } from '../../src/lib/supabase';
 import { fetchConnectedAccounts, verifyLinkCode, VerifyCodeResult } from '../../src/api/accounts';
 import { KIBButton } from '../../src/components/KIBPrimitives';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { colors, fontFamily, radius, spacing, type } from '../../src/theme';
 import { safeBack } from '../../src/lib/navigation';
 
 /**
@@ -62,7 +62,7 @@ export default function ConnectedAccounts() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing.xl, paddingBottom: 60, paddingHorizontal: spacing.xl, gap: spacing.md }}>
-        <Text style={[type.h3 as any, { color: colors.text }]}>Connected accounts</Text>
+        <Text style={[type.title, { color: colors.text }]}>Connected accounts</Text>
         <Text style={{ color: colors.textSecondary, fontSize: 14 }}>
           KeepItBack links content sent to its official Instagram account by matching a one-time code. Save a Reel or post by DM-ing it to
           KeepItBack after linking — nothing from your existing Instagram Saved collection is imported.
@@ -70,7 +70,7 @@ export default function ConnectedAccounts() {
 
         {/* Real linked rows from Supabase */}
         <View style={{ marginTop: spacing.md, gap: 6 }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Linked Instagram senders</Text>
+          <Text style={[type.overline, { color: colors.textMuted }]}>Linked Instagram senders</Text>
           {notConfigured ? (
             <View style={[styles.warnBox, { borderColor: colors.error }]}>
               <Text style={{ color: colors.error, fontSize: 13 }}>Not configured</Text>
@@ -96,7 +96,7 @@ export default function ConnectedAccounts() {
 
         {/* Code entry */}
         <View style={{ marginTop: spacing.lg, gap: 8 }}>
-          <Text style={{ color: colors.text, fontSize: 15 }}>Enter verification code</Text>
+          <Text style={[type.overline, { color: colors.textMuted }]}>Enter verification code</Text>
           <Text style={{ color: colors.textMuted, fontSize: 13 }}>
             Message the official KeepItBack Instagram account with anything (e.g. &quot;hi&quot;). It replies with a one-time code, valid 10 minutes; enter it here while signed in.
           </Text>
@@ -119,7 +119,7 @@ export default function ConnectedAccounts() {
           ) : null}
         </View>
 
-        <KIBButton label="Done" variant="ghost" onPress={() => safeBack(router, '/settings')} style={{ marginTop: spacing.md }} />
+        <KIBButton label="Done" faIcon="chevron-left" variant="ghost" onPress={() => safeBack(router, '/settings')} style={{ marginTop: spacing.md }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -128,25 +128,29 @@ export default function ConnectedAccounts() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   input: {
-    height: 52,
+    height: 58,
     backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
+    borderColor: colors.text,
+    borderWidth: 1.5,
+    borderRadius: 18,
     color: colors.text,
     paddingHorizontal: spacing.lg,
-    fontSize: 17,
-    letterSpacing: 2,
+    fontSize: 22,
+    fontFamily: fontFamily.bodyStrong,
+    fontWeight: '800',
+    letterSpacing: 4,
+    textAlign: 'center',
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: radius.sm,
-    padding: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
   },
-  warnBox: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, backgroundColor: colors.surface },
+  warnBox: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, backgroundColor: colors.surface },
 });

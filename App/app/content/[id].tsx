@@ -4,7 +4,8 @@ import { KIBText as Text } from '../../src/components/KIBText';
 import * as Network from 'expo-network';
 import { File } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { KIBPlatformBadge, KIBBottomSheet } from '../../src/components/KIBContent';
+import { KIBBottomSheet } from '../../src/components/KIBContent';
+import { KIBPlatformLogo } from '../../src/components/KIBPlatformLogo';
 import { KIBButton, KIBTag } from '../../src/components/KIBPrimitives';
 import { describeDbError, getSupabase } from '../../src/lib/supabase';
 import { createCategory, deleteItem, fetchItem, markOpened, setItemTags, updateItem } from '../../src/api/items';
@@ -16,7 +17,11 @@ import { deleteDownloadedMedia, directMediaReason, downloadSavedMedia } from '..
 import { useAuth } from '../../src/auth/AuthProvider';
 import { useLibrary } from '../../src/store/useLibrary';
 import { SavedItem } from '../../src/types';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KIBKip } from '../../src/components/KIBKip';
+import { CollectionCheck } from '../../src/components/KIBCollectionCheck';
+import { colors, fontFamily, radius, spacing, type } from '../../src/theme';
 import { safeBack } from '../../src/lib/navigation';
 
 /**
@@ -28,6 +33,7 @@ import { safeBack } from '../../src/lib/navigation';
 export default function ContentDetails() {
   const { id, duplicate } = useLocalSearchParams<{ id: string; duplicate?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { userId } = useAuth();
   const [item, setItem] = useState<SavedItem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -354,23 +360,30 @@ export default function ContentDetails() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + 48 }}>
       {duplicate === '1' ? (
         <View style={styles.duplicateBanner}>
-          <Text style={{ color: colors.warning, fontSize: 13 }}>You already had this saved — this is the original entry.</Text>
+          <FontAwesomeFreeSolid name="triangle-exclamation" size={14} color={colors.warning} style={{ marginTop: 2 }} />
+          <Text style={{ color: colors.warning, fontSize: 13, flex: 1, fontFamily: fontFamily.bodyMedium, fontWeight: '600' }}>You already had this saved — this is the original entry.</Text>
         </View>
       ) : null}
 
-      <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.xl }}>
+      <View style={{ paddingHorizontal: spacing.xl, marginTop: spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <KIBPlatformBadge platform={item.platform} />
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{item.content_type}</Text>
+          <View style={styles.platformPill} accessibilityLabel={`${item.platform} logo`}>
+            <KIBPlatformLogo platform={item.platform} size={14} />
+            <Text style={{ color: colors.text, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{item.platform}</Text>
+          </View>
+          <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fontFamily.bodyMedium }}>{item.content_type}</Text>
         </View>
-        <Text style={[type.h2 as any, { color: colors.text, marginTop: spacing.md }]}>{item.title}</Text>
+        <Text style={[type.h2, { color: colors.text, marginTop: spacing.md }]}>{item.title}</Text>
         {item.thumbnail_url ? (
-          <View style={{ width: '100%', height: 190, borderRadius: radius.md, marginTop: spacing.md, backgroundColor: colors.surface3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: '100%', height: 220, borderRadius: radius.lg + 4, marginTop: spacing.lg, backgroundColor: colors.surface3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
             {failedThumbnailUrl === item.thumbnail_url ? (
-              <Text style={{ color: colors.textMuted, fontSize: 13 }}>Cover unavailable · retry preview below</Text>
+              <View style={{ alignItems: 'center', gap: 8 }}>
+                <FontAwesomeFreeSolid name="rotate-right" size={24} color={colors.textMuted} />
+                <Text style={{ color: colors.textMuted, fontSize: 13 }}>Cover unavailable · retry preview below</Text>
+              </View>
             ) : (
               <Image
                 source={{ uri: item.thumbnail_url }}
@@ -381,28 +394,32 @@ export default function ContentDetails() {
             )}
           </View>
         ) : null}
-        {item.category ? <Text style={{ color: colors.accent, marginTop: 4 }}>{item.category}</Text> : null}
-        {item.sync_state === 'pending' || item.sync_state === 'error' ? <Text style={{ color: colors.warning, marginTop: 4, fontSize: 12 }}>{item.sync_state === 'error' ? 'Sync needs a retry' : 'Waiting to sync from this device'}</Text> : null}
-        {item.creator_handle || item.creator_name ? (
-          <Text style={{ color: colors.textMuted, marginTop: 4 }}>{item.creator_handle ?? item.creator_name}</Text>
-        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: spacing.md }}>
+          {item.category ? <View style={styles.categoryPill}><Text style={{ color: colors.text, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{item.category}</Text></View> : null}
+          {item.creator_handle || item.creator_name ? (
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontFamily: fontFamily.bodyMedium, fontWeight: '600' }}>{item.creator_handle ?? item.creator_name}</Text>
+          ) : null}
+        </View>
+        {item.sync_state === 'pending' || item.sync_state === 'error' ? <Text style={{ color: item.sync_state === 'error' ? colors.error : colors.warning, marginTop: 6, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{item.sync_state === 'error' ? 'Sync needs a retry' : 'Waiting to sync from this device'}</Text> : null}
 
-        <View style={{ marginTop: spacing.md, gap: 6 }}>
+        <View style={styles.metaCard}>
           {[
             ['Saved', new Date(item.saved_at).toLocaleString()],
             ['Opened', `${item.open_count} time${item.open_count === 1 ? '' : 's'}`],
             ['Source', item.source],
-          ].map(([label, value]) => (
-            <View key={label} style={{ flexDirection: 'row' }}>
-              <Text style={{ color: colors.textMuted, fontSize: 13, width: 90 }}>{label}</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13, flex: 1 }}>{value}</Text>
+          ].map(([label, value], i) => (
+            <View key={label} style={[{ flexDirection: 'row', paddingVertical: 11 }, i < 2 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+              <Text style={{ color: colors.textMuted, fontSize: 13, width: 80 }}>{label}</Text>
+              <Text style={{ color: colors.text, fontSize: 13, flex: 1, fontFamily: fontFamily.bodyMedium, fontWeight: '600' }}>{value}</Text>
             </View>
           ))}
         </View>
 
         {item.note ? (
           <View style={styles.noteBox}>
-            <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{item.note}</Text>
+            <KIBKip size={34} style={{ position: 'absolute', right: 14, top: -30 }} />
+            <Text style={[type.overline, { color: colors.textMuted, marginBottom: 4 }]}>Note</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 14, lineHeight: 21 }}>{item.note}</Text>
           </View>
         ) : null}
 
@@ -414,9 +431,10 @@ export default function ContentDetails() {
           </View>
         ) : null}
 
-        <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
+        <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
           <KIBButton
-            label="Open original ↗"
+            label="Open original"
+            faIcon="arrow-up-right-from-square"
             onPress={async () => {
               const ok = await Linking.canOpenURL(item.original_url);
               if (!ok) {
@@ -427,32 +445,33 @@ export default function ContentDetails() {
             }}
           />
           {item.platform === 'Instagram' && (!item.thumbnail_url || failedThumbnailUrl === item.thumbnail_url || (!item.creator_handle && !item.creator_name) || item.title === `${item.platform} ${item.content_type}`) && (!item.id.startsWith('local:') || Boolean(item.remote_id)) ? (
-            <KIBButton label={previewBusy ? 'Fetching preview…' : 'Retry Instagram preview'} variant="secondary" disabled={previewBusy} onPress={() => void retryInstagramPreview()} />
+            <KIBButton label={previewBusy ? 'Fetching preview…' : 'Retry Instagram preview'} faIcon="rotate-right" variant="secondary" disabled={previewBusy} onPress={() => void retryInstagramPreview()} />
           ) : null}
           <View style={styles.actionRow}>
-            <KIBButton label="Edit" variant="secondary" style={{ flex: 1 }} onPress={() => setEditOpen(true)} />
-            <KIBButton label="Tags" variant="secondary" style={{ flex: 1 }} onPress={() => setTagsOpen(true)} />
-            <KIBButton label="Collections" variant="secondary" style={{ flex: 1 }} disabled={item.id.startsWith('local:') && !item.remote_id} onPress={() => setCollectionsOpen(true)} />
+            <TrioButton icon="pen" label="Edit" onPress={() => setEditOpen(true)} />
+            <TrioButton icon="tag" label="Tags" onPress={() => setTagsOpen(true)} />
+            <TrioButton icon="folder" label="Collections" disabled={item.id.startsWith('local:') && !item.remote_id} onPress={() => setCollectionsOpen(true)} />
           </View>
-          <KIBButton label={downloadBusy ? 'Downloading…' : downloaded ? 'Open device download' : directMediaReason(item) ? 'Download unavailable' : 'Download direct media'} variant="secondary" disabled={downloadBusy || (!downloaded && Boolean(directMediaReason(item)))} onPress={beginDownload} />
-          <KIBButton label="Delete saved item" variant="danger" onPress={confirmDelete} />
+          <KIBButton label={downloadBusy ? 'Downloading…' : downloaded ? 'Open device download' : directMediaReason(item) ? 'Download unavailable' : 'Download direct media'} faIcon="download" variant="secondary" disabled={downloadBusy || (!downloaded && Boolean(directMediaReason(item)))} onPress={beginDownload} />
+          <KIBButton label="Delete saved item" faIcon="trash-can" variant="danger" onPress={confirmDelete} />
           <KIBButton label="Back to library" variant="ghost" onPress={() => router.replace('/(tabs)/library')} />
         </View>
       </View>
 
       <View style={styles.downloadNote}>
-        <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+        <FontAwesomeFreeSolid name="shield-halved" size={14} color={colors.textMuted} style={{ marginTop: 2 }} />
+        <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 18, flex: 1 }}>
           Social links remain saved references and cannot be downloaded here. Direct media links are checked before download, and require you to confirm you have permission to keep a device copy.
         </Text>
       </View>
 
       <KIBBottomSheet visible={editOpen} onClose={() => setEditOpen(false)} title="Edit details">
         <View style={{ gap: spacing.md }}>
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Title</Text>
+          <Text style={styles.fieldLabel}>Title</Text>
           <TextInput value={title} onChangeText={setTitle} accessibilityLabel="Title" style={styles.textInput} />
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Category</Text>
+          <Text style={styles.fieldLabel}>Category</Text>
           <TextInput value={category} onChangeText={setCategory} accessibilityLabel="Category" placeholder="Add a category" placeholderTextColor={colors.textMuted} style={styles.textInput} />
-          <Text style={{ color: colors.textMuted, fontSize: 13 }}>Note</Text>
+          <Text style={styles.fieldLabel}>Note</Text>
           <TextInput
             value={note}
             onChangeText={setNote}
@@ -530,57 +549,83 @@ function CollectionPicker({
           accessibilityState={{ checked: itemCollections.includes(c.id) }}
           style={styles.collectionRow2}
         >
-          <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>
-            {c.emoji} {c.name}
-          </Text>
-          <Text style={{ color: itemCollections.includes(c.id) ? colors.success : colors.textMuted, fontSize: 16 }}>
-            {itemCollections.includes(c.id) ? '✓' : '+'}
-          </Text>
+          <View style={styles.collectionEmoji}><Text style={{ fontSize: 21 }}>{c.emoji}</Text></View>
+          <Text style={{ color: colors.text, fontSize: 15, flex: 1, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{c.name}</Text>
+          <CollectionCheck checked={itemCollections.includes(c.id)} />
         </Pressable>
       ))}
     </View>
   );
 }
 
+function TrioButton({ icon, label, onPress, disabled }: { icon: 'pen' | 'tag' | 'folder'; label: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      style={({ pressed }) => [styles.trio, { opacity: disabled ? 0.45 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+    >
+      <FontAwesomeFreeSolid name={icon} size={16} color={colors.text} />
+      <Text style={{ color: colors.text, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   duplicateBanner: {
-    backgroundColor: 'rgba(245,185,66,0.12)',
-    borderColor: 'rgba(245,185,66,0.4)',
-    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.warningTint,
+    borderRadius: radius.md,
     padding: spacing.md,
   },
+  platformPill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, paddingLeft: 9, paddingRight: 12, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  categoryPill: { height: 28, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: colors.sky, justifyContent: 'center' },
+  metaCard: { marginTop: spacing.lg, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: spacing.lg, paddingVertical: 2 },
   noteBox: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.md,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginTop: spacing.xxl + 12,
   },
   actionRow: { flexDirection: 'row', gap: 8 },
+  trio: { flex: 1, height: 66, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  fieldLabel: { color: colors.textSecondary, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
   textInput: {
-    height: 48,
-    backgroundColor: colors.surface2,
-    borderColor: colors.border,
-    borderWidth: 1,
+    height: 50,
+    backgroundColor: colors.bg,
+    borderColor: 'transparent',
+    borderWidth: 1.5,
     borderRadius: radius.md,
     color: colors.text,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     fontSize: 15,
+    fontFamily: fontFamily.body,
   },
   downloadNote: {
+    flexDirection: 'row',
+    gap: 10,
     marginHorizontal: spacing.xl,
     marginTop: spacing.lg,
     padding: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(28,23,24,0.05)',
     borderRadius: radius.md,
   },
   collectionRow2: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     paddingVertical: spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
+  collectionEmoji: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 });
