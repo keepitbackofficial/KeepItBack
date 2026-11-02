@@ -6,9 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useUser } from '../../src/auth/AuthProvider';
 import { fetchProfile } from '../../src/api/profile';
 import { fetchConnectedAccounts } from '../../src/api/accounts';
-import { KIBAvatar } from '../../src/components/KIBPrimitives';
+import { KIBAvatar, KIBGroup, KIBListRow } from '../../src/components/KIBPrimitives';
 import { KIBPlatformLogo } from '../../src/components/KIBPlatformLogo';
-import { colors, spacing, type } from '../../src/theme';
+import { KIBKip } from '../../src/components/KIBKip';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, fontFamily, spacing, TAB_BAR_CLEARANCE, type } from '../../src/theme';
 
 /**
  * SCREEN — PROFILE. Name/email come from the real Supabase user (or the
@@ -52,23 +54,27 @@ export default function Profile() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.xl }]}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + TAB_BAR_CLEARANCE }]}>
       <View style={{ alignItems: 'center' }}>
-        <KIBAvatar name={displayName} size={72} />
-        <Text style={[type.h2 as any, { color: colors.text, marginTop: spacing.md }]}>{displayName}</Text>
-        {email ? <Text style={{ color: colors.textSecondary, marginTop: 4 }}>{email}</Text> : null}
+        <View>
+          <View style={styles.avatarRing}><KIBAvatar name={displayName} size={96} /></View>
+          <KIBKip size={40} style={{ position: 'absolute', right: -38, bottom: -4 }} />
+        </View>
+        <Text style={[type.title, { color: colors.text, marginTop: spacing.lg, textAlign: 'center' }]}>{displayName}</Text>
+        {email ? <Text style={{ color: colors.textSecondary, marginTop: 2 }}>{email}</Text> : null}
       </View>
 
-      <View style={{ marginTop: spacing.xxl, gap: 10 }}>
-        <Row label="Connected accounts" value={'›'} onPress={() => router.push('/settings/connected-accounts')} />
-        <Row label="Settings" value="›" onPress={() => router.push('/settings')} />
-        <Row
+      <KIBGroup style={{ marginTop: spacing.xxl + 6 }}>
+        <KIBListRow label="Connected accounts" icon="link" onPress={() => router.push('/settings/connected-accounts')} />
+        <KIBListRow label="Settings" icon="sliders" onPress={() => router.push('/settings')} />
+        <KIBListRow
           label="DM link"
-          platform="Instagram"
+          leading={<KIBPlatformLogo platform="Instagram" size={16} />}
           value={igLinked === 'yes' ? 'Linked' : igLinked === 'no' ? 'Not linked' : '…'}
+          tone={igLinked === 'yes' ? 'ok' : 'muted'}
           onPress={() => router.push('/settings/connected-accounts')}
         />
-      </View>
+      </KIBGroup>
 
       <View style={{ flex: 1 }} />
       <Pressable
@@ -77,9 +83,10 @@ export default function Profile() {
         accessibilityRole="button"
         accessibilityLabel="Sign out"
         accessibilityState={{ disabled: signingOut }}
-        style={{ alignItems: 'center', padding: spacing.lg, opacity: signingOut ? 0.55 : 1 }}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: spacing.lg, opacity: signingOut ? 0.55 : 1 }}
       >
-        <Text style={{ color: colors.error, textAlign: 'center', fontSize: 15 }}>
+        <FontAwesomeFreeSolid name="arrow-right-from-bracket" size={15} color={colors.error} />
+        <Text style={{ color: colors.error, textAlign: 'center', fontSize: 15, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>
           {signingOut ? 'Signing out…' : 'Sign out'}
         </Text>
       </Pressable>
@@ -87,33 +94,7 @@ export default function Profile() {
   );
 }
 
-function Row({ label, value, onPress, platform }: { label: string; value: string; onPress?: () => void; platform?: 'Instagram' }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={platform ? `${platform} ${label}` : label} style={styles.row}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
-        {platform ? <KIBPlatformLogo platform={platform} size={16} /> : null}
-        <Text style={{ color: colors.text, fontSize: 15, flex: 1 }}>{label}</Text>
-      </View>
-      <Text style={{ color: onValueColor(value), fontSize: 14 }}>{value}</Text>
-    </Pressable>
-  );
-}
-
-function onValueColor(v: string) {
-  if (v === 'Linked') return colors.success;
-  if (v === 'Not linked') return colors.textMuted;
-  return colors.textMuted;
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: spacing.md,
-  },
+  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl },
+  avatarRing: { borderRadius: 60, borderWidth: 6, borderColor: colors.surface },
 });

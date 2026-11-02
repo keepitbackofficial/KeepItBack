@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { getSupabase } from '../../src/lib/supabase';
+import { KIBKipScene } from '../../src/components/KIBKip';
 import { colors, spacing, type } from '../../src/theme';
 
 function getAuthParams(rawUrl: string) {
@@ -65,10 +66,12 @@ export default function AuthCallback() {
   return (
     <View style={styles.container}>
       {error ? <>
-        <Text style={[type.h2 as any, { color: colors.text, textAlign: 'center' }]}>Link could not be used</Text>
+        <KIBKipScene size={170} disc={colors.rose} mood="worried" />
+        <Text style={[type.h2, { color: colors.text, textAlign: 'center', marginTop: spacing.lg }]}>Link could not be used</Text>
         <Text style={{ color: colors.error, textAlign: 'center', marginTop: spacing.md }}>{error}</Text>
       </> : <>
-        <ActivityIndicator color={colors.accent} />
+        <KIBKipScene size={170} />
+        <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.lg }} />
         <Text style={{ color: colors.textSecondary, marginTop: spacing.md }}>Completing sign in…</Text>
       </>}
     </View>

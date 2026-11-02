@@ -5,8 +5,9 @@ import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View }
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
 import { getSupabase } from '../../src/lib/supabase';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { colors, spacing, type } from '../../src/theme';
 
 export default function SignIn() {
   const router = useRouter();
@@ -83,10 +84,11 @@ export default function SignIn() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}>
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Text style={[type.display as any, { color: colors.text, textAlign: 'center' }]}>KeepItBack</Text>
-        <Text style={[type.body as any, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md }]}>Save anything. Find everything.</Text>
+        <KIBAuthHero icon={mode === 'email_code' ? 'envelope' : undefined} />
+        <Text style={[type.display, { color: colors.text, textAlign: 'center' }]}>KeepItBack</Text>
+        <Text style={[type.body, { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }]}>Save anything. Find everything.</Text>
 
-        <Animated.View style={{ marginTop: spacing.xxl * 1.2, gap: spacing.md, opacity: formOpacity, transform: [{ translateY: formOffset }] }}>
+        <Animated.View style={{ marginTop: spacing.xxl, gap: spacing.md, opacity: formOpacity, transform: [{ translateY: formOffset }] }}>
           <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" autoComplete="email" accessibilityLabel="Email" style={styles.input} />
           {mode === 'password' ? <>
             <TextInput value={password} onChangeText={setPassword} placeholder="Password" placeholderTextColor={colors.textMuted} secureTextEntry autoComplete="password" accessibilityLabel="Password" style={styles.input} />
@@ -102,14 +104,14 @@ export default function SignIn() {
           {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
         </Animated.View>
       </View>
-      <Text style={{ color: colors.textMuted, textAlign: 'center' }}>Don&apos;t have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-up', params: { shareUrl } } : '/(auth)/sign-up'} style={{ color: colors.accentSoft }}>Sign up</Link></Text>
+      <Text style={authStyles.foot}>Don&apos;t have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-up', params: { shareUrl } } : '/(auth)/sign-up'} style={authStyles.link}>Sign up</Link></Text>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  input: { height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 15 },
-  forgot: { color: colors.accent, textAlign: 'right', fontSize: 13 },
+  input: authStyles.input,
+  forgot: { color: colors.text, textAlign: 'right', fontSize: 13, fontWeight: '700' },
   errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },
 });

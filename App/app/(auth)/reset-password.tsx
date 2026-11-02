@@ -4,8 +4,9 @@ import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'rea
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KIBButton } from '../../src/components/KIBPrimitives';
+import { KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
 import { getSupabase } from '../../src/lib/supabase';
-import { colors, radius, spacing, type } from '../../src/theme';
+import { colors, spacing, type } from '../../src/theme';
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -38,7 +39,8 @@ export default function ResetPassword() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl }]}>
       <View style={{ flex: 1, justifyContent: 'center', gap: spacing.md }}>
-        <Text style={[type.h1 as any, { color: colors.text, textAlign: 'center' }]}>Choose a new password</Text>
+        <KIBAuthHero icon="lock" disc={colors.rose} />
+        <Text style={[type.h1, { color: colors.text, textAlign: 'center' }]}>Choose a new password</Text>
         <TextInput value={password} onChangeText={setPassword} placeholder="New password" placeholderTextColor={colors.textMuted} secureTextEntry autoComplete="new-password" accessibilityLabel="New password" style={styles.input} />
         <KIBButton label={busy ? 'Saving…' : 'Update password'} onPress={() => void updatePassword()} disabled={busy || !ready} />
         {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
@@ -49,6 +51,6 @@ export default function ResetPassword() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
-  input: { height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, color: colors.text, paddingHorizontal: spacing.lg, fontSize: 15 },
+  input: authStyles.input,
   errorText: { color: colors.error, textAlign: 'center', fontSize: 13 },
 });

@@ -3,7 +3,8 @@ import { Image, Modal, Pressable, StyleSheet, TextStyle, View } from 'react-nati
 import { KIBText as Text } from './KIBText';
 import { KIBPlatformLogo } from './KIBPlatformLogo';
 import { KIBMotionPressable } from './KIBPrimitives';
-import { colors, radius, spacing, type } from '../theme';
+import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { colors, fontFamily, radius, spacing, type } from '../theme';
 import { Collection, ContentType, Platform, SavedItem } from '../types';
 import { fetchLinkMetadata } from '../api/linkMetadata';
 import { updateItem } from '../api/items';
@@ -76,10 +77,10 @@ export function KIBThumbnail({
           </Text>
         </View>
       )}
-      {showImage ? <View style={{ position: 'absolute', top: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
+      {showImage ? <View style={{ position: 'absolute', bottom: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
       {vid ? (
-        <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(28,23,24,0.78)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 }}>
-          <Text style={{ color: '#fff', fontSize: 10 }}>{item.content_type}</Text>
+        <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(28,23,24,0.74)', borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2 }}>
+          <Text style={{ color: colors.paper, fontSize: 10, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{item.content_type}</Text>
         </View>
       ) : null}
     </View>
@@ -130,17 +131,17 @@ export function KIBContentRow({ item, onPress, keywords }: { item: SavedItem; on
       accessibilityLabel={`${item.title}, ${item.platform} ${item.content_type}`}
       style={styles.row}
     >
-      <View style={{ width: 92 }}>
-        <KIBThumbnail item={item} height={68} borderRadius={radius.sm} />
+      <View style={{ width: 72 }}>
+        <KIBThumbnail item={item} height={72} borderRadius={radius.md} />
       </View>
       <View style={{ flex: 1, marginLeft: spacing.md }}>
-        <Text style={[type.body as TextStyle, { color: colors.text }]} numberOfLines={2}>
+        <Text style={[type.body as TextStyle, { color: colors.text, fontFamily: fontFamily.bodyStrong, fontWeight: '700', lineHeight: 20 }]} numberOfLines={2}>
           {item.title}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
           <KIBPlatformLogo platform={item.platform as Platform} size={12} />
-          <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginLeft: 4, flex: 1 }]} numberOfLines={1}>
-            • {item.content_type} • {creatorLabel(item)}{item.category ? ` • ${item.category}` : ''}
+          <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginLeft: 6, flex: 1, fontWeight: '500' }]} numberOfLines={1}>
+            {creatorLabel(item)}{item.category ? `  ·  ${item.category}` : ''}
           </Text>
         </View>
         {keywords && keywords.length > 0 ? (
@@ -150,15 +151,22 @@ export function KIBContentRow({ item, onPress, keywords }: { item: SavedItem; on
         ) : null}
       </View>
       <View style={{ alignItems: 'flex-end', gap: 3 }}>
-      {item.local_downloaded ? <Text style={[type.caption as TextStyle, { color: colors.accent }]}>↓</Text> : null}
+      {item.local_downloaded ? <FontAwesomeFreeSolid name="download" size={12} color={colors.text} accessibilityLabel="On this device" /> : null}
       {(item.tags ?? []).length > 0 ? (
-        <Text style={[type.caption as TextStyle, { color: colors.textMuted }]} numberOfLines={1}>
+        <Text style={[type.caption as TextStyle, { color: colors.text, fontFamily: fontFamily.bodyStrong }]} numberOfLines={1}>
           {(item.tags ?? []).slice(0, 2).map((t) => `#${t}`).join(' ')}
         </Text>
       ) : null}
       </View>
     </KIBMotionPressable>
   );
+}
+
+const TILE_COLORS = [colors.sky, colors.rose, colors.paper];
+function tileIndex(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % TILE_COLORS.length;
 }
 
 export function KIBCollectionCard({ collection, count, onPress }: { collection: Collection; count: number; onPress?: () => void }) {
@@ -168,13 +176,15 @@ export function KIBCollectionCard({ collection, count, onPress }: { collection: 
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Collection ${collection.name}, ${count} items`}
-      style={styles.collectionCard}
+      style={[styles.collectionCard, { backgroundColor: TILE_COLORS[tileIndex(collection.id)] }]}
     >
-      <Text style={{ fontSize: 24, color: colors.accent }}>{collection.emoji}</Text>
-      <Text style={[type.body as TextStyle, { color: colors.text, fontWeight: '600', marginTop: 4 }]} numberOfLines={1}>
-        {collection.name}
-      </Text>
-      <Text style={[type.caption as TextStyle, { color: colors.textMuted }]}>{count} items</Text>
+      <View style={styles.emojiTile}><Text style={{ fontSize: 22 }}>{collection.emoji}</Text></View>
+      <View>
+        <Text style={[type.body as TextStyle, { color: colors.text, fontFamily: fontFamily.bodyStrong, fontWeight: '700', lineHeight: 19 }]} numberOfLines={2}>
+          {collection.name}
+        </Text>
+        <Text style={[type.caption as TextStyle, { color: colors.textSecondary, fontWeight: '500' }]}>{count} items</Text>
+      </View>
     </KIBMotionPressable>
   );
 }
@@ -190,19 +200,19 @@ export function KIBCollectionRow({
   onPress?: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Open ${collection.name}`} style={styles.collectionRow}>
-      <View style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.surface3, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 22 }}>{collection.emoji}</Text>
+    <KIBMotionPressable enter onPress={onPress} accessibilityRole="button" accessibilityLabel={`Open ${collection.name}`} style={styles.collectionRow}>
+      <View style={{ width: 52, height: 52, borderRadius: radius.md, backgroundColor: TILE_COLORS[tileIndex(collection.id)], overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 24 }}>{collection.emoji}</Text>
       </View>
       <View style={{ flex: 1, marginLeft: spacing.md }}>
-        <Text style={[type.body as TextStyle, { color: colors.text, fontWeight: '600' }]}>{collection.name}</Text>
-        <Text style={[type.caption as TextStyle, { color: colors.textMuted }]}>
+        <Text style={[type.body as TextStyle, { color: colors.text, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }]}>{collection.name}</Text>
+        <Text style={[type.caption as TextStyle, { color: colors.textMuted, fontWeight: '500' }]}>
           {count} item{count === 1 ? '' : 's'}
           {collection.description ? ` • ${collection.description}` : ''}
         </Text>
       </View>
-      <Text style={{ color: colors.accent, fontSize: 18 }}>›</Text>
-    </Pressable>
+      <FontAwesomeFreeSolid name="chevron-right" size={14} color={colors.textMuted} />
+    </KIBMotionPressable>
   );
 }
 
@@ -225,8 +235,8 @@ export function KIBBottomSheet({
           <View style={styles.sheetHandle} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
             <Text style={[type.h3 as TextStyle, { color: colors.text }]}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close">
-              <Text style={{ color: colors.textMuted, fontSize: 20 }}>×</Text>
+            <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close" style={styles.sheetClose}>
+              <FontAwesomeFreeSolid name="xmark" size={14} color={colors.text} />
             </Pressable>
           </View>
           <View style={{ maxHeight: 480 }}>{children}</View>
@@ -251,44 +261,65 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     alignItems: 'center',
   },
   badge: {
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    borderRadius: radius.sm,
+    backgroundColor: 'rgba(28,23,24,0.74)',
+    borderRadius: 7,
     padding: 4,
   },
   collectionCard: {
-    width: 140,
-    height: 100,
+    width: 138,
+    height: 150,
     borderRadius: radius.lg,
-    padding: spacing.md,
-    marginRight: spacing.md,
+    padding: 14,
+    marginRight: spacing.sm,
     overflow: 'hidden',
+    justifyContent: 'space-between',
+  },
+  emojiTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,250,248,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   collectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(28,23,24,0.38)', justifyContent: 'flex-end' },
+  sheetOverlay: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.modal,
     borderTopRightRadius: radius.modal,
-    padding: spacing.xl,
+    padding: 22,
+    paddingTop: 12,
     paddingBottom: 40,
   },
   sheetHandle: {
     alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
+    width: 42,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(28,23,24,0.18)',
     marginBottom: spacing.lg,
+  },
+  sheetClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(28,23,24,0.42)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   modal: {
