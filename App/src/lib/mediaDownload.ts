@@ -9,6 +9,7 @@
  * looks like an expired link transparently re-resolves the media once.
  */
 import { Directory, File, Paths } from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { MediaApiError, MediaResolution, describeMediaApiError, resolveMedia } from '../api/kibApi';
 import { updateMediaMetadata } from '../api/items';
 import { SavedItem } from '../types';
@@ -23,7 +24,7 @@ export interface DownloadProgress {
 }
 
 export type DownloadOutcome =
-  | { ok: true; localUri: string; fileSize: number; mimeType: string; itemId: string }
+  | { ok: true; localUri: string; fileSize: number; mimeType: string; itemId: string; gallerySaved: boolean }
   | { ok: false; cancelled?: boolean; error: string };
 
 function sanitizeItemId(id: string): string {
@@ -82,6 +83,31 @@ function downloadsDirectory(): Directory {
   const directory = new Directory(Paths.document, 'KeepItBack', 'Downloads');
   if (!directory.exists) directory.create({ intermediates: true, idempotent: true });
   return directory;
+}
+
+/**
+ * Copy the finished file into the device gallery (album "KeepItBack") so it is
+ * visible in Photos / the Files app — the user asked for gallery visibility
+ * without giving up the app-private working copy (V4 PRD §7.2). The media
+ * library is mathematically write-only here: we never read existing media.
+ */
+async function saveToGallery(uri: string): Promise<boolean> {
+  try {
+    // Write-only permission: we never read the user's existing media.
+    const perms = await MediaLibrary.requestPermissionsAsync(true);
+    if (!perms.granted) return false;
+    const album = await MediaLibrary.Album.get('KeepItBack');
+    if (album) {
+      const asset = await MediaLibrary.Asset.create(uri);
+      await album.add([asset]);
+    } else {
+      // moveAssets=false → the asset is copied; the app-private file stays.
+      await MediaLibrary.Album.create('KeepItBack', [uri], false);
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function persistLocalRecord(item: SavedItem, resolved: MediaResolution, file: File, userId: string, itemIdForRecord: string): Promise<LocalRecordInput> {
@@ -172,7 +198,10 @@ export async function downloadVideoForItem(
         media_size_bytes: file.size,
         media_mime_type: input.mimeType,
       }).catch(() => undefined);
-      return { ok: true, localUri: input.localUri, fileSize: input.fileSize, mimeType: input.mimeType, itemId: recordId };
+      // Make the video visible in the device gallery, best-effort — the
+      // app-private copy remains the source of truth for the library UI.
+      const gallerySaved = await saveToGallery(input.localUri);
+      return { ok: true, localUri: input.localUri, fileSize: input.fileSize, mimeType: input.mimeType, itemId: recordId, gallerySaved };
     } catch (e) {
       try { if (destination?.exists) destination.delete(); } catch { /* cleanup best-effort */ }
       if (options.signal?.aborted) return { ok: false, cancelled: true, error: 'Download cancelled.' };

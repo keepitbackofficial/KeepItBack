@@ -43,6 +43,13 @@
         }
       ],
       [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Allow KeepItBack to save downloaded videos to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
         "expo-share-intent",
         {
           "androidIntentFilters": [

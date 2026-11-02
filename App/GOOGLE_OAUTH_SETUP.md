@@ -21,10 +21,35 @@ real Supabase sessions.
 |---|---|
 | Application type | Web application |
 | Authorized JavaScript origins | *(not needed for this flow)* |
-| Authorized redirect URIs | `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback` |
+| Authorized redirect URIs | `https://api.keepitback.in/auth/v1/callback` **and** `https://ljhnlmburyxsbdlxqyxe.supabase.co/auth/v1/callback` |
 
-The `<your-supabase-project-ref>` is the subdomain of the URL stored in
-`EXPO_PUBLIC_SUPABASE_URL`.
+**Important — this project uses a custom Supabase domain.**
+The URL stored in `EXPO_PUBLIC_SUPABASE_URL` is
+
+```
+https://api.keepitback.in
+```
+
+register **both** callback URLs with Google, exactly as written:
+
+```
+https://api.keepitback.in/auth/v1/callback
+```
+and
+```
+https://ljhnlmburyxsbdlxqyxe.supabase.co/auth/v1/callback
+```
+
+**Why both:** the app sends the login request to `https://api.keepitback.in`, but
+Supabase may serve the OAuth authorize step through its own project domain
+(`ljhnlmburyxsbdlxqyxe.supabase.co`) — especially while the custom domain is
+still propagating in Supabase. Google's OAuth 2.0 policy accepts only exact
+matches, so whichever domain Supabase uses must be registered, or the browser
+shows `Error 400: redirect_uri_mismatch`. Copy each value character for
+character (no trailing slash). After editing, Google can take from 5 minutes
+to a few hours to apply the change.
+If you ever change `EXPO_PUBLIC_SUPABASE_URL`, update this entry to the new
+`<url>/auth/v1/callback`.
 
 Google grants these client **ID** and **secret** to Supabase only — they
 are server-side credentials and must never go into the app.

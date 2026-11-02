@@ -14,8 +14,9 @@ import { colors, fontFamily, spacing, type } from '../../src/theme';
 
 export default function SignIn() {
   const router = useRouter();
-  const { shareUrl: shareUrlParam } = useLocalSearchParams<{ shareUrl?: string | string[] }>();
+  const { shareUrl: shareUrlParam, notice: noticeParam } = useLocalSearchParams<{ shareUrl?: string | string[]; notice?: string | string[] }>();
   const shareUrl = Array.isArray(shareUrlParam) ? shareUrlParam[0] : shareUrlParam;
+  const notice = Array.isArray(noticeParam) ? noticeParam[0] : noticeParam;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -45,7 +46,13 @@ export default function SignIn() {
   const { isSignedIn: isSignedInNow } = useAuth();
   useEffect(() => {
     if (!isSignedInNow || googleNavigated.current) return;
-    if (pendingAuthTarget()) return; // the /auth/callback route owns this handoff
+    if (pendingAuthTarget()) {
+      // The /auth/callback route owns this handoff — but if it never mounts
+      // (the browser completion won the race), never leave the user parked
+      // on the login screen: navigate after a short grace period.
+      const grace = setTimeout(() => { googleNavigated.current = true; onSignedIn(); }, 2500);
+      return () => clearTimeout(grace);
+    }
     googleNavigated.current = true;
     onSignedIn();
   }, [isSignedInNow, onSignedIn]);
@@ -57,10 +64,11 @@ export default function SignIn() {
     try {
       const result = await signInWithGoogle(shareUrl);
       if (result.ok) {
-        // If the deep link won the race, the callback route already routed
-        // the app; only navigate when that handoff target is still pending.
-        const target = consumePendingAuthTarget();
-        if (target || pendingAuthTarget()) { googleNavigated.current = true; onSignedIn(); }
+        // The browser completion is just as valid as the callback route's;
+        // whichever wins, the signed-in user must land in the app.
+        consumePendingAuthTarget();
+        googleNavigated.current = true;
+        onSignedIn();
         return;
       }
       if (result.error && !result.dismissed) setError(result.error);
@@ -129,12 +137,6 @@ export default function SignIn() {
             <Link href="/(auth)/forgot-password" style={styles.forgot}>Forgot password?</Link>
             <KIBButton label={busy ? 'Signing in…' : 'Sign in'} onPress={() => void signInWithPassword()} disabled={busy} />
             <KIBButton label="Other ways to log in" variant="secondary" onPress={() => void sendEmailCode()} disabled={busy} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
-                <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
-                <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fontFamily.bodyMedium }}>or</Text>
-                <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
-              </View>
-              <GoogleAuthButton busy={busy} onPress={() => void continueWithGoogle()} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.xs }}>
               <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
                 <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fontFamily.bodyMedium }}>or</Text>
@@ -148,6 +150,7 @@ export default function SignIn() {
             <KIBButton label="Back to password sign in" variant="ghost" onPress={() => { setError(null); setMode('password'); }} disabled={busy} />
           </>}
           {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
+          {notice ? <Text style={styles.noticeText} accessibilityLiveRegion="polite">{notice}</Text> : null}
         </Animated.View>
       </View>
       <Text style={authStyles.foot}>Don&apos;t have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-up', params: { shareUrl } } : '/(auth)/sign-up'} style={authStyles.link}>Sign up</Link></Text>
@@ -157,6 +160,7 @@ export default function SignIn() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
+  noticeText: { color: colors.success, textAlign: 'center', fontSize: 13 },
   input: authStyles.input,
   forgot: { color: colors.text, textAlign: 'right', fontSize: 13, fontWeight: '700' },
   errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },

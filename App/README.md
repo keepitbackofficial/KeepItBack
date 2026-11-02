@@ -36,8 +36,9 @@ paper surfaces, and terracotta controls.
 - The media service (`https://eqwxy.aiccloud.online`) needs no client key. It is called
   in `src/api/kibApi.ts` with URL validation, per-request timeouts, and one transparent
   fresh-token retry when a temporary download link has expired.
-- Downloaded videos are stored app-privately under `KeepItBack/Downloads`, so no gallery
-  permission is requested; the file record lives in the SQLCipher-encrypted local database.
+- Downloaded videos are stored app-privately under `KeepItBack/Downloads` and copied into
+  the device gallery in a "KeepItBack" album (write-only media-library permission); the
+  download record lives in the SQLCipher-encrypted local database.
 - Google sign-in needs the one-time provider/redirect configuration in
   `GOOGLE_OAUTH_SETUP.md` before the buttons will complete a session.
 

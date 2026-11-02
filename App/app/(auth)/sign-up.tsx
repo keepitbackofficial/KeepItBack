@@ -46,7 +46,13 @@ export default function SignUp() {
   // real accounts are created by Google OAuth through Supabase.
   useEffect(() => {
     if (!isSignedIn || googleNavigated.current) return;
-    if (pendingAuthTarget()) return; // the callback route owns this handoff
+    if (pendingAuthTarget()) {
+      // The callback route owns this handoff — but if it never mounts
+      // (the browser completion won the race), never leave the user parked
+      // on the sign-up screen: navigate after a short grace period.
+      const grace = setTimeout(() => { googleNavigated.current = true; continueToApp(); }, 2500);
+      return () => clearTimeout(grace);
+    }
     googleNavigated.current = true;
     continueToApp();
   }, [isSignedIn, continueToApp]);
@@ -58,8 +64,11 @@ export default function SignUp() {
     try {
       const result = await signInWithGoogle(shareUrl);
       if (result.ok) {
-        const target = consumePendingAuthTarget();
-        if (target || pendingAuthTarget()) { googleNavigated.current = true; continueToApp(); }
+        // The browser completion is just as valid as the callback route's;
+        // whichever wins, the signed-in user must land in the app.
+        consumePendingAuthTarget();
+        googleNavigated.current = true;
+        continueToApp();
         return;
       }
       if (result.error && !result.dismissed) setError(result.error);

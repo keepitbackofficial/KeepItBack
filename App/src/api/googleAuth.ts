@@ -9,6 +9,7 @@
  */
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { completeAuthFromUrl, setPendingAuthTarget } from '../lib/authExchange';
 
@@ -35,7 +36,7 @@ export async function signInWithGoogle(shareUrl?: string): Promise<GoogleSignInO
   }
   // A pending shared link rides along on the redirect URL itself (V4 PRD
   // §5), so it survives even if the app process restarts mid sign-in.
-  const redirectTo = Linking.createURL(shareUrl ? `/auth/callback?shareUrl=${encodeURIComponent(shareUrl)}` : '/auth/callback');
+  const redirectTo = authRedirectUrl(shareUrl ? `/auth/callback?shareUrl=${encodeURIComponent(shareUrl)}` : '/auth/callback');
   setPendingAuthTarget(shareUrl);
   try {
     const { data, error } = await getSupabase().auth.signInWithOAuth({
@@ -45,7 +46,7 @@ export async function signInWithGoogle(shareUrl?: string): Promise<GoogleSignInO
     if (error) return { ok: false, error: friendlyError(error.message) };
     if (!data?.url) return { ok: false, error: 'Google sign-in could not be started. Try again.' };
 
-    const result = await WebBrowser.openAuthSessionAsync(data.url, Linking.createURL('/auth/callback'));
+    const result = await WebBrowser.openAuthSessionAsync(data.url, authRedirectUrl('/auth/callback'));
     if (result.type === 'success' && typeof result.url === 'string') {
       // The deep link normally routes to /auth/callback which completes the
       // exchange. Fall back to completing it here when routing did not win.
@@ -65,4 +66,25 @@ export async function signInWithGoogle(shareUrl?: string): Promise<GoogleSignInO
     const { data } = await getSupabase().auth.getSession().catch(() => ({ data: { session: null } }));
     if (!data.session) setPendingAuthTarget(shareUrl); // keep for the callback route handoff
   }
+}
+
+/**
+ * The redirect that must land back inside the app after Google consent.
+ *
+ * Expo Go sessions round-trip the development server (`exp://<ip>:19000/--/…`),
+ * which changes between sessions — there Linking.createURL is the only choice.
+ * Everywhere else (dev client, testflight/production builds) the app.json
+ * scheme is fixed, so we pin `keepitback://auth/callback` ourselves: the same
+ * single URL in every session, which is also what the Supabase redirect
+ * allow-list contains for production. That guarantees the browser lands back
+ * in this app instead of falling back to the Supabase site URL.
+ */
+function authRedirectUrl(path: string): string {
+  if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    return Linking.createURL(path);
+  }
+  // Deterministic deep link in every real build.
+  const queryStart = path.indexOf('?');
+  const query = queryStart >= 0 ? path.slice(queryStart) : '';
+  return `keepitback://auth/callback${query}`;
 }

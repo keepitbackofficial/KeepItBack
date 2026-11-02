@@ -18,6 +18,7 @@ export interface DownloadJob {
   progress: DownloadProgress;
   error?: string;
   doneUri?: string;
+  gallerySaved?: boolean;
   startedAt: number;
 }
 
@@ -79,7 +80,7 @@ export const useDownloads = create<DownloadsState>((set, get) => ({
     });
 
     if (outcome.ok) {
-      patch({ stage: 'done', doneUri: outcome.localUri });
+      patch({ stage: 'done', doneUri: outcome.localUri, gallerySaved: outcome.gallerySaved });
       get().onFinished?.();
       return { ok: true };
     }

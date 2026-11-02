@@ -65,19 +65,22 @@ export function KIBThumbnail({
   };
 
   const vid = ['Video', 'Reel', 'Short'].includes(item.content_type as ContentType);
+  // The platform brand mark only appears once the video is actually on this
+  // device (V4): while the saved link is not downloaded, no logo is shown.
+  const showPlatform = Boolean(item.local_downloaded);
   return (
     <View style={{ height, borderRadius, overflow: 'hidden', backgroundColor: colors.surface3 }}>
       {showImage ? (
         <Image source={{ uri: thumbnailUrl! }} resizeMode="cover" onError={handleImageError} style={{ width: '100%', height: '100%' }} />
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-          <KIBPlatformLogo platform={item.platform as Platform} size={height * 0.3} />
+          {showPlatform ? <KIBPlatformLogo platform={item.platform as Platform} size={height * 0.3} /> : null}
           <Text style={{ color: colors.textMuted, fontSize: 10 }} numberOfLines={1}>
             Preview unavailable
           </Text>
         </View>
       )}
-      {showImage ? <View style={{ position: 'absolute', bottom: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
+      {showImage && showPlatform ? <View style={{ position: 'absolute', bottom: 6, left: 6 }}><KIBPlatformBadge platform={item.platform as Platform} /></View> : null}
       {vid ? (
         <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(28,23,24,0.74)', borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 2 }}>
           <Text style={{ color: colors.paper, fontSize: 10, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>{item.content_type}</Text>
@@ -107,7 +110,7 @@ export function KIBContentCard({ item, onPress, width }: { item: SavedItem; onPr
     >
       <KIBThumbnail item={item} height={110} />
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-        <KIBPlatformLogo platform={item.platform as Platform} size={13} />
+        {item.local_downloaded ? <KIBPlatformLogo platform={item.platform as Platform} size={13} /> : null}
         <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginLeft: 5 }]}>• {item.content_type}</Text>
       </View>
       <Text style={[type.body as TextStyle, { color: colors.text, marginTop: 2 }]} numberOfLines={2}>
@@ -139,7 +142,7 @@ export function KIBContentRow({ item, onPress, keywords }: { item: SavedItem; on
           {item.title}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
-          <KIBPlatformLogo platform={item.platform as Platform} size={12} />
+          {item.local_downloaded ? <KIBPlatformLogo platform={item.platform as Platform} size={12} /> : null}
           <Text style={[type.caption as TextStyle, { color: colors.textMuted, marginLeft: 6, flex: 1, fontWeight: '500' }]} numberOfLines={1}>
             {creatorLabel(item)}{item.category ? `  ·  ${item.category}` : ''}
           </Text>
@@ -151,7 +154,7 @@ export function KIBContentRow({ item, onPress, keywords }: { item: SavedItem; on
         ) : null}
       </View>
       <View style={{ alignItems: 'flex-end', gap: 3 }}>
-      {item.local_downloaded ? <FontAwesomeFreeSolid name="download" size={12} color={colors.text} accessibilityLabel="On this device" /> : null}
+      {item.local_downloaded ? <FontAwesomeFreeSolid name="download" size={12} color={colors.text} accessibilityLabel="Video on this device" /> : null}
       {(item.tags ?? []).length > 0 ? (
         <Text style={[type.caption as TextStyle, { color: colors.text, fontFamily: fontFamily.bodyStrong }]} numberOfLines={1}>
           {(item.tags ?? []).slice(0, 2).map((t) => `#${t}`).join(' ')}

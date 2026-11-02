@@ -517,7 +517,14 @@ export default function ContentDetails() {
               </Pressable>
             </View>
           ) : downloadJob && downloadJob.stage === 'done' ? (
-            <KIBButton label="Open device download" faIcon="folder-open" variant="secondary" onPress={beginDownload} />
+            <View style={{ gap: spacing.xs }}>
+              <KIBButton label="Open device download" faIcon="folder-open" variant="secondary" onPress={beginDownload} />
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                {downloadJob.gallerySaved === false
+                  ? 'Also copied to your gallery unless the gallery permission was denied.'
+                  : 'Also visible in your gallery under the KeepItBack album.'}
+              </Text>
+            </View>
           ) : (
             <KIBButton
               label={downloadBusy || downloadActive ? (downloadJob?.stage === 'resolving' ? 'Resolving…' : 'Downloading…') : downloaded ? 'Open device download' : 'Download video'}
