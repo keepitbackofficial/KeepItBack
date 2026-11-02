@@ -13,6 +13,7 @@ paper surfaces, and terracotta controls.
 | Feature | Status |
 |---|---|
 | Email/password sign-up and sign-in, persistent Supabase session | ✅ |
+| Google sign-up/sign-in through Supabase OAuth (browser PKCE) | ✅ see `GOOGLE_OAUTH_SETUP.md` for one-time configuration |
 | Email confirmation, one-time email-code sign-in, password recovery | ✅ |
 | Save links to Supabase, duplicate detection, honest errors | ✅ |
 | YouTube / TikTok previews from their oEmbed endpoints | ✅ best effort |
@@ -21,9 +22,24 @@ paper surfaces, and terracotta controls.
 | Notes, tags, and collections | ✅ RLS-protected |
 | Instagram DM linking, shared collection invites, privacy endpoints | ✅ app and Edge Function code; requires server setup |
 | Native share-to-app | ✅ Android and iOS development/production builds |
-| Device downloads | ✅ direct permitted media links only |
+| Share-to-app from Instagram, YouTube, Pinterest and X (Twitter) | ✅ URL extracted from the share payload |
+| Real video downloads (V4) | ✅ Instagram / YouTube / Pinterest / X reels via the KeepItBack Media API, saved as MP4 under app-private `KeepItBack/Downloads` |
+| Download manager (V4) | ✅ resolving/downloading progress, cancel, retry, duplicate-job protection |
 | Opt-in first-party analytics | ✅ fixed event names only; no saved content |
 | AI summaries / semantic search | ⛔ intentionally absent |
+
+## V4 setup notes (metadata API + video downloads)
+
+- Run `supabase/migrations/20261102120000_v4_media_downloads.sql` in the Supabase SQL
+  Editor (it adds `duration_s`, `width`, `height`, `media_size_bytes`, `media_mime_type`
+  and `platform_id` to `saved_items`; nullable columns only — no existing data changes).
+- The media service (`https://eqwxy.aiccloud.online`) needs no client key. It is called
+  in `src/api/kibApi.ts` with URL validation, per-request timeouts, and one transparent
+  fresh-token retry when a temporary download link has expired.
+- Downloaded videos are stored app-privately under `KeepItBack/Downloads`, so no gallery
+  permission is requested; the file record lives in the SQLCipher-encrypted local database.
+- Google sign-in needs the one-time provider/redirect configuration in
+  `GOOGLE_OAUTH_SETUP.md` before the buttons will complete a session.
 
 ## 1. Install and run
 

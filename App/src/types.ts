@@ -41,6 +41,15 @@ export interface SavedItem {
   category?: string | null;
   source: SaveSource;
   note?: string | null;
+  /** Media properties from the KeepItBack Metadata API / completed download (V4 PRD §3, §7). */
+  duration_s?: number | null;
+  width?: number | null;
+  height?: number | null;
+  media_size_bytes?: number | null;
+  media_mime_type?: string | null;
+  platform_id?: string | null;
+  local_uri?: string | null;
+  storage_path?: string | null;
   saved_at: string;
   opened_at?: string | null;
   open_count: number;

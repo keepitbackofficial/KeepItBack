@@ -46,7 +46,8 @@
         "expo-share-intent",
         {
           "androidIntentFilters": [
-            "text/*"
+            "text/*",
+            "image/*"
           ],
           "iosAppGroupIdentifier": "group.in.app.keepitback",
           "iosActivationRules": {
