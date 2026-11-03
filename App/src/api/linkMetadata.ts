@@ -1,5 +1,6 @@
 import { isValidUrl } from '../lib/platform';
 import { getSupabase } from '../lib/supabase';
+import { resolveApiMetadata } from './kibApi';
 
 export interface LinkMetadata {
   title?: string;
@@ -7,6 +8,11 @@ export interface LinkMetadata {
   thumbnail_url?: string;
   creator_name?: string;
   creator_handle?: string;
+  /** Video properties from the KeepItBack Metadata API (V4 PRD §4.1). */
+  duration?: number | null;
+  width?: number | null;
+  height?: number | null;
+  platform_id?: string | null;
 }
 
 interface OEmbedResponse {
@@ -43,37 +49,40 @@ function safeHttpsUrl(value: unknown): string | undefined {
   }
 }
 
-function oEmbedEndpoint(contentUrl: URL): string | null {
-  const host = contentUrl.hostname.toLowerCase();
-  const youtube = host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com');
-  if (youtube) {
-    const endpoint = new URL('https://www.youtube.com/oembed');
-    endpoint.searchParams.set('url', contentUrl.toString());
-    endpoint.searchParams.set('format', 'json');
-    return endpoint.toString();
-  }
-
-  const tiktok = host === 'tiktok.com' || host.endsWith('.tiktok.com');
-  if (tiktok) {
-    const endpoint = new URL('https://www.tiktok.com/oembed');
-    endpoint.searchParams.set('url', contentUrl.toString());
-    return endpoint.toString();
-  }
-  return null;
+function positiveNumber(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function handleFromAuthorUrl(value: unknown): string | undefined {
-  const authorUrl = safeHttpsUrl(value);
-  if (!authorUrl) return undefined;
-  try {
-    const firstSegment = new URL(authorUrl).pathname.split('/').filter(Boolean)[0];
-    return firstSegment?.startsWith('@') ? cleanText(firstSegment, 80) : undefined;
-  } catch {
-    return undefined;
-  }
+function httpsText(value: unknown): string | undefined {
+  return typeof value === 'string' && value.startsWith('https://') ? cleanText(value, 600) : undefined;
 }
 
-async function requestMetadata(url: string): Promise<LinkMetadata | null> {
+/**
+ * Primary metadata path: the KeepItBack Metadata API (/api/v1/resolve) —
+ * it covers Instagram, YouTube/Shorts, Pinterest and X (V4 PRD §4.3) and
+ * adds video duration, resolution and platform id that oEmbed cannot
+ * provide. When the API is unreachable it falls back to provider oEmbed
+ * endpoints so saving keeps working.
+ */
+async function requestApiMetadata(url: string): Promise<LinkMetadata | null> {
+  const response = await resolveApiMetadata(url);
+  const resolved = response.metadata ?? {};
+  const metadata: LinkMetadata = {
+    title: cleanText(resolved.title, 300),
+    description: cleanText(resolved.description, 1000),
+    thumbnail_url: httpsText(resolved.thumbnail),
+    creator_name: cleanText(resolved.author, 160),
+    creator_handle: cleanText(resolved.author, 80),
+    duration: positiveNumber(resolved.duration),
+    width: positiveNumber(resolved.width),
+    height: positiveNumber(resolved.height),
+    platform_id: cleanText(resolved.platform_id, 120),
+  };
+  return Object.values(metadata).some(Boolean) ? metadata : null;
+}
+
+async function requestOEmbedMetadata(url: string): Promise<LinkMetadata | null> {
   let contentUrl: URL;
   try {
     contentUrl = new URL(url);
@@ -126,6 +135,16 @@ async function requestMetadata(url: string): Promise<LinkMetadata | null> {
   }
 }
 
+async function requestMetadata(url: string): Promise<LinkMetadata | null> {
+  try {
+    const fromApi = await requestApiMetadata(url);
+    if (fromApi) return fromApi;
+  } catch {
+    // API unavailable / unsupported → provider oEmbed fallback below.
+  }
+  return requestOEmbedMetadata(url);
+}
+
 /** Fetch only metadata exposed by the provider's documented oEmbed endpoint. */
 export function fetchLinkMetadata(rawUrl: string, options: { force?: boolean } = {}): Promise<LinkMetadata | null> {
   const url = rawUrl.trim();
@@ -150,4 +169,34 @@ export function fetchLinkMetadata(rawUrl: string, options: { force?: boolean } =
   });
   inFlight.set(url, request);
   return request;
+}
+
+function oEmbedEndpoint(contentUrl: URL): string | null {
+  const host = contentUrl.hostname.toLowerCase();
+  const youtube = host === 'youtu.be' || host === 'youtube.com' || host.endsWith('.youtube.com');
+  if (youtube) {
+    const endpoint = new URL('https://www.youtube.com/oembed');
+    endpoint.searchParams.set('url', contentUrl.toString());
+    endpoint.searchParams.set('format', 'json');
+    return endpoint.toString();
+  }
+
+  const tiktok = host === 'tiktok.com' || host.endsWith('.tiktok.com');
+  if (tiktok) {
+    const endpoint = new URL('https://www.tiktok.com/oembed');
+    endpoint.searchParams.set('url', contentUrl.toString());
+    return endpoint.toString();
+  }
+  return null;
+}
+
+function handleFromAuthorUrl(value: unknown): string | undefined {
+  const authorUrl = safeHttpsUrl(value);
+  if (!authorUrl) return undefined;
+  try {
+    const firstSegment = new URL(authorUrl).pathname.split('/').filter(Boolean)[0];
+    return firstSegment?.startsWith('@') ? cleanText(firstSegment, 80) : undefined;
+  } catch {
+    return undefined;
+  }
 }

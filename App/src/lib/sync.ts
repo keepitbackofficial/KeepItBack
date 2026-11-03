@@ -14,7 +14,7 @@ async function hasConnection() {
   return state.isConnected === true && state.isInternetReachable !== false;
 }
 
-function localItem(url: string, userId: string, source: SaveSource): SavedItem {
+function localItem(url: string, userId: string, source: SaveSource, metadata?: LinkMetadata | null): SavedItem {
   const platform = detectPlatform(url);
   const contentType = detectContentType(url);
   return {
@@ -25,19 +25,25 @@ function localItem(url: string, userId: string, source: SaveSource): SavedItem {
     platform,
     content_type: contentType,
     title: `${platform} ${contentType}`,
-    creator_name: null,
-    creator_handle: null,
     source,
     note: null,
     saved_at: new Date().toISOString(),
     open_count: 0,
     is_archived: false,
     tags: [],
+    description: metadata?.description ?? null,
+    thumbnail_url: metadata?.thumbnail_url ?? null,
+    creator_name: metadata?.creator_name ?? null,
+    creator_handle: metadata?.creator_handle ?? null,
+    duration_s: metadata?.duration ?? null,
+    width: metadata?.width ?? null,
+    height: metadata?.height ?? null,
+    platform_id: metadata?.platform_id ?? null,
     sync_state: 'pending',
   };
 }
 
-async function queueSave(url: string, userId: string, source: SaveSource): Promise<SaveWithOfflineOutcome> {
+async function queueSave(url: string, userId: string, source: SaveSource, metadata?: LinkMetadata | null): Promise<SaveWithOfflineOutcome> {
   try {
     const canonical = canonicalUrl(url);
     const cached = await getCachedItems(userId);
@@ -53,7 +59,7 @@ async function queueSave(url: string, userId: string, source: SaveSource): Promi
     const pendingItem = (pending?.payload as { item?: SavedItem } | undefined)?.item;
     if (pendingItem) return { ok: true, item: pendingItem, duplicate: true, queued: true };
 
-    const item = localItem(url, userId, source);
+    const item = localItem(url, userId, source, metadata);
     await enqueueOperation(userId, 'save_url', { url, source, item, edited_fields: [] });
     return { ok: true, item, duplicate: false, queued: true };
   } catch (error) {
@@ -68,17 +74,17 @@ export async function saveUrlWithOffline(
   const url = rawUrl.trim();
   if (!isValidUrl(url)) return { ok: false, error: 'invalid-url' };
   try {
-    if (!(await hasConnection())) return await queueSave(url, options.userId, options.source);
+    if (!(await hasConnection())) return await queueSave(url, options.userId, options.source, options.metadata);
   } catch {
-    return await queueSave(url, options.userId, options.source);
+    return await queueSave(url, options.userId, options.source, options.metadata);
   }
 
   const result = await saveUrl(url, options);
   if (!result.ok) {
     try {
-      if (!(await hasConnection())) return await queueSave(url, options.userId, options.source);
+      if (!(await hasConnection())) return await queueSave(url, options.userId, options.source, options.metadata);
     } catch {
-      return await queueSave(url, options.userId, options.source);
+      return await queueSave(url, options.userId, options.source, options.metadata);
     }
   }
   return result;
@@ -192,6 +198,24 @@ export async function syncPendingSaves(userId: string) {
       }
       if (!result.duplicate) void logProductEvent(userId, 'content_saved');
       if (payload.source === 'share_extension' && !result.duplicate) void logProductEvent(userId, 'share_extension_used');
+      // Media metadata captured on-device (offline save) lands on the real
+      // row once it syncs — merged, never overwritten with nulls.
+      if (payload.item) {
+        const mediaFields = Object.entries({
+          duration_s: payload.item.duration_s ?? undefined,
+          width: payload.item.width ?? undefined,
+          height: payload.item.height ?? undefined,
+          platform_id: payload.item.platform_id ?? undefined,
+          description: payload.item.description ?? undefined,
+          thumbnail_url: payload.item.thumbnail_url ?? undefined,
+        }).filter(([, value]) => value != null);
+        const missingMedia = mediaFields.some(([field, value]) => value != null && (syncedItem as unknown as Record<string, unknown>)[field] == null);
+        if (missingMedia && mediaFields.length) {
+          const { updateItem } = await import('../api/items');
+          const mediaUpdate = await updateItem(result.item.id, Object.fromEntries(mediaFields));
+          if ('data' in mediaUpdate) syncedItem = mediaUpdate.data;
+        }
+      }
       await finishOperation(operation.id);
       synced += 1;
     } else {

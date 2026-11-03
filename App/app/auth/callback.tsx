@@ -4,16 +4,11 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { getSupabase } from '../../src/lib/supabase';
+import { consumePendingAuthTarget, getAuthParams } from '../../src/lib/authExchange';
 import { KIBKipScene } from '../../src/components/KIBKip';
 import { colors, spacing, type } from '../../src/theme';
 
-function getAuthParams(rawUrl: string) {
-  const parsed = new URL(rawUrl);
-  const params = new URLSearchParams(parsed.search);
-  const hashParams = new URLSearchParams(parsed.hash.replace(/^#/, ''));
-  hashParams.forEach((value, key) => params.set(key, value));
-  return params;
-}
+// getAuthParams moved to src/lib/authExchange so the Google browser flow shares it.
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -52,7 +47,12 @@ export default function AuthCallback() {
         }
 
         if (!mounted) return;
-        router.replace(type === 'recovery' || flow === 'recovery' ? '/(auth)/reset-password' : '/(tabs)/home');
+        // OAuth sign-ins can carry a pending shared link target (V4 PRD §5);
+        // email links keep their existing destinations.
+        const shareUrl = params.get('shareUrl') ?? consumePendingAuthTarget()?.shareUrl;
+        if (type === 'recovery' || flow === 'recovery') router.replace('/(auth)/reset-password');
+        else if (shareUrl) router.replace({ pathname: '/save', params: { url: shareUrl, source: 'share_extension' } });
+        else router.replace('/(tabs)/home');
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : 'Could not complete this authentication link.');
       }

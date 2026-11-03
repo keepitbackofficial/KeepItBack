@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { KIBText as Text } from '../../src/components/KIBText';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { fetchCategories, searchItems } from '../../src/api/items';
@@ -12,6 +12,7 @@ import { KIBEmptyState, KIBFilterChip } from '../../src/components/KIBPrimitives
 import { CONTENT_TYPE_FILTERS, DEFAULT_CATEGORIES, PLATFORM_FILTERS, PlatformFilter, SavedItem, SearchFilters } from '../../src/types';
 import { getCachedItems, getPendingLocalItems, getRecentSearches, rememberSearch } from '../../src/lib/localStore';
 import { listDownloads } from '../../src/lib/downloads';
+import { useDownloads } from '../../src/store/useDownloads';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 import { colors, fontFamily, radius, spacing, TAB_BAR_CLEARANCE, type } from '../../src/theme';
 
@@ -34,6 +35,7 @@ export default function Search() {
   const [showFilters, setShowFilters] = useState(false);
   const [results, setResults] = useState<SavedItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [downloadedPlatforms, setDownloadedPlatforms] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
@@ -117,6 +119,35 @@ export default function Search() {
     void getRecentSearches(userId).then(setRecent).catch(() => setRecent([]));
   }, [userId]);
 
+  // Platform filter chips exist only for platforms with at least one video
+  // actually downloaded to this device; they appear as soon as a download
+  // completes (V4 downloaded-library UX).
+  const loadDownloadedPlatforms = useCallback(async () => {
+    if (!userId) { setDownloadedPlatforms(new Set()); return; }
+    try {
+      const [cached, pending, downloads] = await Promise.all([
+        getCachedItems(userId),
+        getPendingLocalItems(userId),
+        listDownloads(userId),
+      ]);
+      const ids = new Set(downloads.map((download) => download.item_id));
+      const platforms = new Set<string>();
+      for (const item of [...cached, ...pending]) {
+        if (ids.has(item.id) || (item.remote_id && ids.has(item.remote_id))) platforms.add(item.platform);
+      }
+      setDownloadedPlatforms(platforms);
+    } catch {
+      setDownloadedPlatforms(new Set());
+    }
+  }, [userId]);
+
+  useFocusEffect(useCallback(() => { void loadDownloadedPlatforms(); }, [loadDownloadedPlatforms]));
+
+  useEffect(() => useDownloads.subscribe(() => {
+    const done = Object.values(useDownloads.getState().jobs).some((job) => job.stage === 'done');
+    if (done) void loadDownloadedPlatforms();
+  }), [loadDownloadedPlatforms]);
+
   useEffect(() => {
     void fetchCategories().then((result) => {
       if ('data' in result) setCategories([...new Set([...DEFAULT_CATEGORIES, ...result.data])]);
@@ -170,7 +201,11 @@ export default function Search() {
       {showFilters ? (
         <ScrollView style={styles.panel} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingVertical: spacing.lg, gap: spacing.sm }}>
           <Text style={styles.filterLabel}>Platform</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipLine}>{PLATFORM_FILTERS.map((f: PlatformFilter) => <KIBPlatformChip key={f} platform={f} active={filters.platform === f} onPress={() => setFilters((current) => ({ ...current, platform: f }))} />)}</ScrollView>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipLine}>
+            {PLATFORM_FILTERS.filter((f: PlatformFilter) => f === 'All' || downloadedPlatforms.has(f)).map((f: PlatformFilter) => (
+              <KIBPlatformChip key={f} platform={f} active={filters.platform === f} onPress={() => setFilters((current) => ({ ...current, platform: f }))} />
+            ))}
+          </ScrollView>
           <Text style={styles.filterLabel}>Content type</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipLine}>{CONTENT_TYPE_FILTERS.map((value) => <KIBFilterChip key={value} label={value} active={filters.contentType === value} onPress={() => setFilters((current) => ({ ...current, contentType: value }))} />)}</ScrollView>
           <Text style={styles.filterLabel}>Category</Text>

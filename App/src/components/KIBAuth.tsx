@@ -1,7 +1,9 @@
 import React, { ComponentProps } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
+import { FontAwesomeFreeBrands } from '@react-native-vector-icons/fontawesome-free-brands';
 import { KIBKipScene } from './KIBKip';
+import { KIBText as Text } from './KIBText';
 import { colors, fontFamily, radius, spacing } from '../theme';
 
 /** Kip on a colour disc at the top of the sign-in screens, with an optional prop badge. */
@@ -40,4 +42,36 @@ export const authStyles = StyleSheet.create({
   noticeText: { color: colors.success, fontSize: 13, textAlign: 'center' },
   link: { color: colors.text, fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
   foot: { color: colors.textSecondary, textAlign: 'center', fontSize: 14 },
+});
+
+/** "Continue with Google" — official mark plus a label, styled to the app's buttons. */
+export function GoogleAuthButton({ label = 'Continue with Google', busy, onPress }: { label?: string; busy?: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={busy ? 'Working with Google…' : label}
+      accessibilityState={{ disabled: Boolean(busy), busy: Boolean(busy) }}
+      style={({ pressed }) => [googleStyles.button, { opacity: busy ? 0.6 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+    >
+      <FontAwesomeFreeBrands name="google" size={18} color={colors.text} />
+      <Text style={googleStyles.label}>{busy ? 'Continuing…' : label}</Text>
+    </Pressable>
+  );
+}
+
+const googleStyles = StyleSheet.create({
+  button: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: 'rgba(28,23,24,0.16)',
+  },
+  label: { color: colors.text, fontSize: 15, fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
 });

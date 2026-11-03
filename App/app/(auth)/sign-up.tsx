@@ -1,13 +1,16 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { KIBButton } from '../../src/components/KIBPrimitives';
-import { KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
+import { GoogleAuthButton, KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
 import { getSupabase } from '../../src/lib/supabase';
-import { colors, spacing, type } from '../../src/theme';
+import { signInWithGoogle } from '../../src/api/googleAuth';
+import { consumePendingAuthTarget, pendingAuthTarget } from '../../src/lib/authExchange';
+import { colors, fontFamily, spacing, type } from '../../src/theme';
 
 export default function SignUp() {
   const router = useRouter();
@@ -22,6 +25,8 @@ export default function SignUp() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const { isSignedIn } = useAuth();
+  const googleNavigated = useRef(false);
   const [screenOpacity] = useState(() => new Animated.Value(0));
   const [screenOffset] = useState(() => new Animated.Value(8));
 
@@ -33,9 +38,44 @@ export default function SignUp() {
     return () => { screenOpacity.stopAnimation(); screenOffset.stopAnimation(); };
   }, [screenOffset, screenOpacity, verificationSent]);
 
-  const continueToApp = () => router.replace(shareUrl
+  const continueToApp = useCallback(() => router.replace(shareUrl
     ? { pathname: '/save', params: { url: shareUrl, source: 'share_extension' } }
-    : '/(tabs)/home');
+    : '/(tabs)/home'), [router, shareUrl]);
+
+  // New-user Google sign-up completes the same way (V4 PRD §2.1/§2.2):
+  // real accounts are created by Google OAuth through Supabase.
+  useEffect(() => {
+    if (!isSignedIn || googleNavigated.current) return;
+    if (pendingAuthTarget()) {
+      // The callback route owns this handoff — but if it never mounts
+      // (the browser completion won the race), never leave the user parked
+      // on the sign-up screen: navigate after a short grace period.
+      const grace = setTimeout(() => { googleNavigated.current = true; continueToApp(); }, 2500);
+      return () => clearTimeout(grace);
+    }
+    googleNavigated.current = true;
+    continueToApp();
+  }, [isSignedIn, continueToApp]);
+
+  const continueWithGoogle = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await signInWithGoogle(shareUrl);
+      if (result.ok) {
+        // The browser completion is just as valid as the callback route's;
+        // whichever wins, the signed-in user must land in the app.
+        consumePendingAuthTarget();
+        googleNavigated.current = true;
+        continueToApp();
+        return;
+      }
+      if (result.error && !result.dismissed) setError(result.error);
+    } catch {
+      setError('Could not start Google sign-in. Try again.');
+    } finally { setBusy(false); }
+  };
 
   const createAccount = async () => {
     if (busy) return;
@@ -102,6 +142,12 @@ export default function SignUp() {
             <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" autoComplete="email" accessibilityLabel="Email" style={styles.input} />
             <TextInput value={password} onChangeText={setPassword} placeholder="Password (at least 6 characters)" placeholderTextColor={colors.textMuted} secureTextEntry autoComplete="new-password" accessibilityLabel="Password" style={styles.input} />
             <KIBButton label={busy ? 'Creating…' : 'Create account'} onPress={() => void createAccount()} disabled={busy} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm }}>
+              <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
+              <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fontFamily.bodyMedium }}>or</Text>
+              <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
+            </View>
+            <GoogleAuthButton busy={busy} onPress={() => void continueWithGoogle()} />
           </> : <>
             <TextInput value={code} onChangeText={setCode} placeholder="Email verification code" placeholderTextColor={colors.textMuted} keyboardType="number-pad" autoComplete="one-time-code" accessibilityLabel="Email verification code" style={styles.input} />
             <KIBButton label={busy ? 'Verifying…' : 'Verify email'} onPress={() => void verifyEmail()} disabled={busy} />

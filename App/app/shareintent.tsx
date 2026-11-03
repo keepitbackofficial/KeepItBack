@@ -18,7 +18,7 @@ export default function ShareIntentScreen() {
   const reason = Array.isArray(reasonParam) ? reasonParam[0] : reasonParam;
   const message = reason === 'parse'
     ? 'Could not read the shared content.'
-    : 'No web link was found in the shared content.';
+    : 'No web link was found in the shared content. Links from Instagram, YouTube, Pinterest and X (Twitter) open automatically.';
 
   return (
     <View style={styles.container}>

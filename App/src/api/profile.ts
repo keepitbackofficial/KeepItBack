@@ -99,6 +99,12 @@ export function mapItem(r: any): SavedItem {
     description: r.description ?? null,
     thumbnail_url: r.thumbnail_url ?? null,
     category: r.category ?? null,
+    duration_s: r.duration_s ?? null,
+    width: r.width ?? null,
+    height: r.height ?? null,
+    media_size_bytes: r.media_size_bytes ?? null,
+    media_mime_type: r.media_mime_type ?? null,
+    platform_id: r.platform_id ?? null,
     sync_state: r.sync_state ?? 'synced',
     tags: (r.item_tags ?? r.tag_links ?? [])
       .map((link: any) => link?.tag?.name ?? link?.tags?.name ?? link?.tag_id?.name)
