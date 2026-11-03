@@ -11,7 +11,7 @@ export function detectPlatform(url: string): Platform {
   if (/tiktok\.com/.test(u)) return 'TikTok';
   if (/facebook\.com|fb\.watch/.test(u)) return 'Facebook';
   if (/(twitter|x)\.com/.test(u)) return 'X';
-  if (/pinterest\./.test(u)) return 'Pinterest';
+  if (/pinterest\.com/.test(u) || /pin\.it\//.test(u)) return 'Pinterest';
   if (/reddit\.com/.test(u)) return 'Reddit';
   return 'Web';
 }
@@ -24,6 +24,7 @@ export function detectContentType(url: string): ContentType {
   if (/\/explore\//.test(u)) return 'Reel';
   if (/\.(jpe?g|png|gif|webp)(\?|$)/.test(u)) return 'Image';
   if (/\/p\//.test(u)) return 'Post';
+  if (/pin\.it/.test(u)) return 'Post';
   if (/\/article|\/blog|\/posts?\//.test(u)) return 'Article';
   if (/\.(pdf|md|txt)(\?|$)/.test(u)) return 'Article';
   return 'Link';

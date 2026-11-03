@@ -234,7 +234,7 @@ export default function SaveUrl() {
         ) : null}
         <Text style={[type.caption as any, { color: colors.textMuted, textAlign: 'center', marginVertical: spacing.md }]}>
           {platform === 'Instagram'
-            ? 'Instagram URLs are sent to an external preview provider for public metadata.'
+            ? 'Instagram, Pinterest and X URLs are processed by the KeepItBack media service for public metadata.'
             : 'The platform and content type are detected from the URL itself.'}
         </Text>
         <View>

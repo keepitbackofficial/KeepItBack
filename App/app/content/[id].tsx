@@ -13,9 +13,11 @@ import { fetchLinkMetadata } from '../../src/api/linkMetadata';
 import { fetchProfile } from '../../src/api/profile';
 import { logProductEvent } from '../../src/api/analytics';
 import { deletePendingSave, getCachedItems, getDownloads, getPendingLocalItems, queueItemDelete, queueItemUpdate, removeCachedItem, updateCachedItem, updatePendingSave } from '../../src/lib/localStore';
-import { deleteDownloadedMedia, directMediaReason, downloadSavedMedia } from '../../src/lib/downloads';
+import { deleteDownloadedMedia, downloadSavedMedia } from '../../src/lib/downloads';
+import { videoDownloadSupported } from '../../src/lib/mediaDownload';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { useLibrary } from '../../src/store/useLibrary';
+import { useDownloads } from '../../src/store/useDownloads';
 import { SavedItem } from '../../src/types';
 import { FontAwesomeFreeSolid } from '@react-native-vector-icons/fontawesome-free-solid';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,6 +54,14 @@ export default function ContentDetails() {
   const [downloadUri, setDownloadUri] = useState<string | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const openedOnce = useRef(false);
+
+  const recordId = item ? (item.remote_id ?? item.id) : null;
+  const downloadJob = useDownloads((state) => {
+    if (!item || !recordId) return undefined;
+    return Object.values(state.jobs).find((existing) =>
+      (existing.item.remote_id ?? existing.item.id) === recordId || existing.item.canonical_url === item.canonical_url);
+  });
+  const downloadActive = Boolean(downloadJob && (downloadJob.stage === 'resolving' || downloadJob.stage === 'downloading'));
 
   useEffect(() => {
     void (async () => {
@@ -300,6 +310,46 @@ export default function ContentDetails() {
     ]);
   };
 
+  const notifyDownloadComplete = async () => {
+    if (!item || !userId) return;
+    void logProductEvent(userId, 'download_completed');
+    const profile = await fetchProfile(userId);
+    if (profile.data?.notification_preferences?.download_complete) {
+      try {
+        const Notifications = await import('expo-notifications');
+        let permission = await Notifications.getPermissionsAsync();
+        if (!permission.granted) permission = await Notifications.requestPermissionsAsync();
+        if (permission.granted) {
+          await Notifications.scheduleNotificationAsync({
+            content: { title: 'Download ready', body: `${item.title} is saved on this device.` },
+            trigger: null,
+          });
+        }
+      } catch {
+        Alert.alert('Download complete', 'The video is saved on this device, but notifications are unavailable in this app build.');
+      }
+    }
+  };
+
+  const startVideoDownload = async () => {
+    if (!item || !userId) return;
+    setDownloadBusy(true);
+    if (userId) void logProductEvent(userId, 'download_started');
+    const result = await useDownloads.getState().start(item, userId);
+    setDownloadBusy(false);
+    if (result.ok) {
+      const finished = Object.values(useDownloads.getState().jobs)
+        .find((existing) => (existing.item.remote_id ?? existing.item.id) === recordId && existing.doneUri);
+      if (finished?.doneUri) { setDownloaded(true); setDownloadUri(finished.doneUri); }
+      void useLibrary.getState().loadItems({ force: true });
+      void notifyDownloadComplete();
+      return;
+    }
+    if (result.error && result.error !== 'cancelled') {
+      Alert.alert('Download unavailable', result.error);
+    }
+  };
+
   const beginDownload = () => {
     if (!item || !userId || downloadBusy) return;
     if (downloaded) {
@@ -307,8 +357,14 @@ export default function ContentDetails() {
       void new File(downloadUri).preview({ title: item.title }).catch(() => Alert.alert('Could not open download', 'The saved file is unavailable on this device.'));
       return;
     }
-    const reason = directMediaReason(item);
+    const reason = videoDownloadSupported(item);
     if (reason) { Alert.alert('Download unavailable', reason); return; }
+
+    if (item.platform !== 'Web') {
+      // Real video download through the KeepItBack media service (V4 PRD §7.1).
+      void startVideoDownload();
+      return;
+    }
     Alert.alert('Download direct media?', 'Confirm that you have permission to save this direct media file to your device. Only the direct file is downloaded; social platform links stay as references.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'I have permission', onPress: async () => {
@@ -319,25 +375,7 @@ export default function ContentDetails() {
         if (result.error) { Alert.alert('Download unavailable', result.error); return; }
         setDownloaded(true);
         setDownloadUri(result.data?.local_uri ?? null);
-        if (userId) {
-          void logProductEvent(userId, 'download_completed');
-          const profile = await fetchProfile(userId);
-          if (profile.data?.notification_preferences?.download_complete) {
-            try {
-              const Notifications = await import('expo-notifications');
-              let permission = await Notifications.getPermissionsAsync();
-              if (!permission.granted) permission = await Notifications.requestPermissionsAsync();
-              if (permission.granted) {
-                await Notifications.scheduleNotificationAsync({
-                  content: { title: 'Download ready', body: `${item.title} is saved on this device.` },
-                  trigger: null,
-                });
-              }
-            } catch {
-              Alert.alert('Download complete', 'The media is saved on this device, but notifications are unavailable in this app build.');
-            }
-          }
-        }
+        void notifyDownloadComplete();
       } },
     ]);
   };
@@ -452,16 +490,75 @@ export default function ContentDetails() {
             <TrioButton icon="tag" label="Tags" onPress={() => setTagsOpen(true)} />
             <TrioButton icon="folder" label="Collections" disabled={item.id.startsWith('local:') && !item.remote_id} onPress={() => setCollectionsOpen(true)} />
           </View>
-          <KIBButton label={downloadBusy ? 'Downloading…' : downloaded ? 'Open device download' : directMediaReason(item) ? 'Download unavailable' : 'Download direct media'} faIcon="download" variant="secondary" disabled={downloadBusy || (!downloaded && Boolean(directMediaReason(item)))} onPress={beginDownload} />
+          {downloadJob && (downloadJob.stage === 'resolving' || downloadJob.stage === 'downloading') ? (
+            <View style={styles.progressCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={{ color: colors.text, fontSize: 13, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>
+                  {downloadJob.stage === 'resolving' ? 'Resolving video…' : 'Downloading video…'}
+                </Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Cancel download" hitSlop={10}
+                  onPress={() => downloadJob && void useDownloads.getState().cancel(downloadJob.key)}>
+                  <Text style={{ color: colors.error, fontSize: 13, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>Cancel</Text>
+                </Pressable>
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${dlPercent(downloadJob)}%` }]} />
+              </View>
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                {fmtBytes(downloadJob.progress.receivedBytes)}{downloadJob.progress.totalBytes ? ` / ${fmtBytes(downloadJob.progress.totalBytes)}` : ''}
+              </Text>
+            </View>
+          ) : downloadJob && downloadJob.stage === 'error' ? (
+            <View style={[styles.progressCard, { gap: spacing.sm }]}>
+              <Text style={{ color: colors.error, fontSize: 13 }}>{downloadJob.error}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Retry download" hitSlop={10}
+                onPress={() => { useDownloads.getState().clearJob(downloadJob.key); void startVideoDownload(); }}>
+                <Text style={{ color: colors.text, fontSize: 13, fontFamily: fontFamily.bodyStrong, fontWeight: '700' }}>Retry</Text>
+              </Pressable>
+            </View>
+          ) : downloadJob && downloadJob.stage === 'done' ? (
+            <View style={{ gap: spacing.xs }}>
+              <KIBButton label="Open device download" faIcon="folder-open" variant="secondary" onPress={beginDownload} />
+              <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                {downloadJob.gallerySaved === false
+                  ? 'Also copied to your gallery unless the gallery permission was denied.'
+                  : 'Also visible in your gallery under the KeepItBack album.'}
+              </Text>
+            </View>
+          ) : (
+            <KIBButton
+              label={downloadBusy || downloadActive ? (downloadJob?.stage === 'resolving' ? 'Resolving…' : 'Downloading…') : downloaded ? 'Open device download' : 'Download video'}
+              faIcon="download"
+              variant="secondary"
+              disabled={downloadBusy || downloadActive || (!downloaded && Boolean(videoDownloadSupported(item)))}
+              onPress={beginDownload}
+            />
+          )}
           <KIBButton label="Delete saved item" faIcon="trash-can" variant="danger" onPress={confirmDelete} />
           <KIBButton label="Back to library" variant="ghost" onPress={() => router.replace('/(tabs)/library')} />
         </View>
+
+        {item.duration_s || (item.width && item.height) ? (
+          <View style={[styles.metaCard, { marginTop: spacing.xl }]}>
+            {[
+              ...(item.duration_s ? [['Duration', fmtDuration(item.duration_s)] as [string, string]] : []),
+              ...(item.width && item.height ? [['Resolution', `${item.width} × ${item.height}`] as [string, string]] : []),
+              ...(item.media_size_bytes ? [['Download size', fmtBytes(item.media_size_bytes)] as [string, string]] : []),
+              ...(item.media_mime_type ? [['Format', item.media_mime_type] as [string, string]] : []),
+            ].map(([mediaLabel, mediaValue], i, rows) => (
+              <View key={mediaLabel} style={[{ flexDirection: 'row', paddingVertical: 11 }, i < rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+                <Text style={{ color: colors.textMuted, fontSize: 13, width: 110 }}>{mediaLabel}</Text>
+                <Text style={{ color: colors.text, fontSize: 13, flex: 1, fontFamily: fontFamily.bodyMedium, fontWeight: '600' }}>{mediaValue}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.downloadNote}>
         <FontAwesomeFreeSolid name="shield-halved" size={14} color={colors.textMuted} style={{ marginTop: 2 }} />
         <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 18, flex: 1 }}>
-          Social links remain saved references and cannot be downloaded here. Direct media links are checked before download, and require you to confirm you have permission to keep a device copy.
+          Videos from Instagram, YouTube, Pinterest and X are extracted by the KeepItBack media service and saved as MP4 files on this device. Direct web media is checked before download; you confirm you have permission to keep a device copy.
         </Text>
       </View>
 
@@ -598,6 +695,9 @@ const styles = StyleSheet.create({
   },
   actionRow: { flexDirection: 'row', gap: 8 },
   trio: { flex: 1, height: 66, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  progressCard: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
+  progressTrack: { height: 8, borderRadius: radius.pill, backgroundColor: colors.surface3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.accent, minWidth: 8 },
   fieldLabel: { color: colors.textSecondary, fontSize: 12, fontFamily: fontFamily.bodyStrong, fontWeight: '700' },
   textInput: {
     height: 50,
@@ -629,3 +729,20 @@ const styles = StyleSheet.create({
   },
   collectionEmoji: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
 });
+
+function fmtBytes(size: number): string {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fmtDuration(seconds: number): string {
+  const total = Math.round(seconds);
+  const minutesPart = Math.floor(total / 60);
+  const secondsPart = String(total % 60).padStart(2, '0');
+  return minutesPart > 0 ? `${minutesPart}:${secondsPart}` : `0:${secondsPart}`;
+}
+
+function dlPercent(job: { progress: { receivedBytes: number; totalBytes: number | null } }): number {
+  if (!job.progress.totalBytes || job.progress.totalBytes <= 0) return 0;
+  return Math.min(100, Math.max(3, Math.round((job.progress.receivedBytes / job.progress.totalBytes) * 100)));
+}

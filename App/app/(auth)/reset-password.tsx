@@ -30,7 +30,13 @@ export default function ResetPassword() {
     try {
       const { error: authError } = await getSupabase().auth.updateUser({ password });
       if (authError) { setError(authError.message); return; }
-      router.replace('/(tabs)/home');
+      // Password changed on the recovery session — end that session and ask
+      // for a fresh sign-in with the new password.
+      await getSupabase().auth.signOut().catch(() => undefined);
+      router.replace({
+        pathname: '/(auth)/sign-in',
+        params: { notice: 'Password updated. Sign in with your new password.' },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not update your password. Try again.');
     } finally { setBusy(false); }
@@ -44,6 +50,7 @@ export default function ResetPassword() {
         <TextInput value={password} onChangeText={setPassword} placeholder="New password" placeholderTextColor={colors.textMuted} secureTextEntry autoComplete="new-password" accessibilityLabel="New password" style={styles.input} />
         <KIBButton label={busy ? 'Saving…' : 'Update password'} onPress={() => void updatePassword()} disabled={busy || !ready} />
         {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
+        {!ready && !error ? <Text style={styles.errorText}>Loading your reset link…</Text> : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -53,4 +60,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
   input: authStyles.input,
   errorText: { color: colors.error, textAlign: 'center', fontSize: 13 },
+  successText: { color: colors.success, textAlign: 'center', fontSize: 13 },
 });

@@ -146,12 +146,16 @@ export async function saveUrl(
       if (existing) {
         let item = mapItem(existing);
         const metadata = opts.metadata;
-        const patch: Record<string, string> = {};
+        const patch: Record<string, unknown> = {};
         if (metadata?.title && item.title === `${item.platform} ${item.content_type}`) patch.title = metadata.title;
         if (metadata?.description && !item.description) patch.description = metadata.description;
         if (metadata?.thumbnail_url && !item.thumbnail_url) patch.thumbnail_url = metadata.thumbnail_url;
         if (metadata?.creator_name && !item.creator_name) patch.creator_name = metadata.creator_name;
         if (metadata?.creator_handle && !item.creator_handle) patch.creator_handle = metadata.creator_handle;
+        if (metadata?.duration && item.duration_s == null) patch.duration_s = metadata.duration;
+        if (metadata?.width && item.width == null) patch.width = metadata.width;
+        if (metadata?.height && item.height == null) patch.height = metadata.height;
+        if (metadata?.platform_id && !item.platform_id) patch.platform_id = metadata.platform_id;
         if (Object.keys(patch).length) {
           const { data: enriched, error: enrichError } = await db.from('saved_items')
             .update(patch).eq('id', item.id).select(ITEM_SELECT).maybeSingle();
@@ -178,6 +182,10 @@ export async function saveUrl(
       title: opts.metadata?.title ?? `${platform} ${contentType}`,
       creator_name: opts.metadata?.creator_name ?? null,
       creator_handle: opts.metadata?.creator_handle ?? null,
+      duration_s: opts.metadata?.duration ?? null,
+      width: opts.metadata?.width ?? null,
+      height: opts.metadata?.height ?? null,
+      platform_id: opts.metadata?.platform_id ?? null,
       source: opts.source ?? ('manual' as SaveSource),
     };
     const { data, error } = await db.from('saved_items').insert(insert).select(ITEM_SELECT).single();
@@ -214,6 +222,27 @@ export interface ItemPatch {
   creator_name?: string | null;
   creator_handle?: string | null;
   is_archived?: boolean;
+  duration_s?: number | null;
+  width?: number | null;
+  height?: number | null;
+  media_size_bytes?: number | null;
+  media_mime_type?: string | null;
+  platform_id?: string | null;
+}
+
+/**
+ * Persist media properties from a real download (V4 PRD §7.1 step 10).
+ * Values come from the KeepItBack Media API response and the verified
+ * on-disk file, never invention.
+ */
+export async function updateMediaMetadata(id: string, patch: Pick<ItemPatch, 'duration_s' | 'width' | 'height' | 'media_size_bytes' | 'media_mime_type'>): Promise<{ error?: string }> {
+  try {
+    const { error } = await getSupabase().from('saved_items').update(patch).eq('id', id);
+    if (error) return { error: describeDbError(error) };
+    return {};
+  } catch (e: any) {
+    return { error: e?.message ?? 'Could not update media details.' };
+  }
 }
 
 export async function updateItem(id: string, patch: ItemPatch): Promise<ApiResult<SavedItem>> {

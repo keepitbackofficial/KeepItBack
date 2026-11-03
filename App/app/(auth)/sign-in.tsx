@@ -1,18 +1,22 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { KIBText as Text } from '../../src/components/KIBText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { KIBButton } from '../../src/components/KIBPrimitives';
-import { KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
+import { GoogleAuthButton, KIBAuthHero, authStyles } from '../../src/components/KIBAuth';
 import { getSupabase } from '../../src/lib/supabase';
-import { colors, spacing, type } from '../../src/theme';
+import { signInWithGoogle } from '../../src/api/googleAuth';
+import { consumePendingAuthTarget, pendingAuthTarget } from '../../src/lib/authExchange';
+import { colors, fontFamily, spacing, type } from '../../src/theme';
 
 export default function SignIn() {
   const router = useRouter();
-  const { shareUrl: shareUrlParam } = useLocalSearchParams<{ shareUrl?: string | string[] }>();
+  const { shareUrl: shareUrlParam, notice: noticeParam } = useLocalSearchParams<{ shareUrl?: string | string[]; notice?: string | string[] }>();
   const shareUrl = Array.isArray(shareUrlParam) ? shareUrlParam[0] : shareUrlParam;
+  const notice = Array.isArray(noticeParam) ? noticeParam[0] : noticeParam;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -31,9 +35,47 @@ export default function SignIn() {
     return () => { formOpacity.stopAnimation(); formOffset.stopAnimation(); };
   }, [formOffset, formOpacity, mode]);
 
-  const onSignedIn = () => router.replace(shareUrl
+  const onSignedIn = useCallback(() => router.replace(shareUrl
     ? { pathname: '/save', params: { url: shareUrl, source: 'share_extension' } }
-    : '/(tabs)/home');
+    : '/(tabs)/home'), [router, shareUrl]);
+
+  // Google's PKCE exchange completes in /auth/callback when the deep link
+  // wins the race; if it never routes, catch the session change here and
+  // continue to the right place (V4 PRD §2.2 — the flow must complete).
+  const googleNavigated = useRef(false);
+  const { isSignedIn: isSignedInNow } = useAuth();
+  useEffect(() => {
+    if (!isSignedInNow || googleNavigated.current) return;
+    if (pendingAuthTarget()) {
+      // The /auth/callback route owns this handoff — but if it never mounts
+      // (the browser completion won the race), never leave the user parked
+      // on the login screen: navigate after a short grace period.
+      const grace = setTimeout(() => { googleNavigated.current = true; onSignedIn(); }, 2500);
+      return () => clearTimeout(grace);
+    }
+    googleNavigated.current = true;
+    onSignedIn();
+  }, [isSignedInNow, onSignedIn]);
+
+  const continueWithGoogle = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await signInWithGoogle(shareUrl);
+      if (result.ok) {
+        // The browser completion is just as valid as the callback route's;
+        // whichever wins, the signed-in user must land in the app.
+        consumePendingAuthTarget();
+        googleNavigated.current = true;
+        onSignedIn();
+        return;
+      }
+      if (result.error && !result.dismissed) setError(result.error);
+    } catch {
+      setError('Could not start Google sign-in. Try again.');
+    } finally { setBusy(false); }
+  };
 
   const signInWithPassword = async () => {
     if (busy) return;
@@ -95,6 +137,12 @@ export default function SignIn() {
             <Link href="/(auth)/forgot-password" style={styles.forgot}>Forgot password?</Link>
             <KIBButton label={busy ? 'Signing in…' : 'Sign in'} onPress={() => void signInWithPassword()} disabled={busy} />
             <KIBButton label="Other ways to log in" variant="secondary" onPress={() => void sendEmailCode()} disabled={busy} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.xs }}>
+              <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
+                <Text style={{ color: colors.textMuted, fontSize: 12, fontFamily: fontFamily.bodyMedium }}>or</Text>
+              <View style={{ height: 1, backgroundColor: colors.border, flex: 1 }} />
+            </View>
+            <GoogleAuthButton busy={busy} onPress={() => void continueWithGoogle()} />
           </> : <>
             <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>Enter the one-time code sent to {email}.</Text>
             <TextInput value={code} onChangeText={setCode} placeholder="Email code" placeholderTextColor={colors.textMuted} keyboardType="number-pad" autoComplete="one-time-code" accessibilityLabel="Email sign-in code" style={styles.input} />
@@ -102,6 +150,7 @@ export default function SignIn() {
             <KIBButton label="Back to password sign in" variant="ghost" onPress={() => { setError(null); setMode('password'); }} disabled={busy} />
           </>}
           {error ? <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text> : null}
+          {notice ? <Text style={styles.noticeText} accessibilityLiveRegion="polite">{notice}</Text> : null}
         </Animated.View>
       </View>
       <Text style={authStyles.foot}>Don&apos;t have an account?{' '}<Link href={shareUrl ? { pathname: '/(auth)/sign-up', params: { shareUrl } } : '/(auth)/sign-up'} style={authStyles.link}>Sign up</Link></Text>
@@ -111,6 +160,7 @@ export default function SignIn() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl },
+  noticeText: { color: colors.success, textAlign: 'center', fontSize: 13 },
   input: authStyles.input,
   forgot: { color: colors.text, textAlign: 'right', fontSize: 13, fontWeight: '700' },
   errorText: { color: colors.error, fontSize: 13, textAlign: 'center' },

@@ -22,8 +22,11 @@ export default function ForgotPassword() {
     setError(null);
     setMessage(null);
     try {
+      // No query string: Supabase matches redirectTo against the redirect
+      // allow-list, and the recovery type already arrives inside the
+      // generated verify URL itself.
       const { error: authError } = await getSupabase().auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${Linking.createURL('auth/callback')}?flow=recovery`,
+        redirectTo: Linking.createURL('auth/callback'),
       });
       if (authError) setError(authError.message);
       else setMessage('If an account exists for that address, a password reset email is on its way.');
